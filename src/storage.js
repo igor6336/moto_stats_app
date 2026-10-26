@@ -98,6 +98,24 @@ export async function deleteRide(id) {
   return done(tx);
 }
 
+// Frees space: drops motion/orientation rows, keeps the ride, its summary
+// and the GPS track.
+export async function deleteSensorData(id) {
+  const db = await openDB();
+  const tx = db.transaction(['rides', 'sensor'], 'readwrite');
+  tx.objectStore('sensor').delete(rideRange(id));
+  const rides = tx.objectStore('rides');
+  const r = rides.get(id);
+  r.onsuccess = () => {
+    if (r.result) rides.put({ ...r.result, sensorsDeleted: Date.now() });
+  };
+  return done(tx);
+}
+
+// Rough on-device size of a ride's sensor rows (measured: ~110 bytes per
+// motion row including the matching orientation row).
+export const sensorBytes = (ride) => (ride.sensorsDeleted ? 0 : (ride.counts?.motion || 0) * 110);
+
 export async function kvGet(key) {
   const db = await openDB();
   return req(db.transaction('kv').objectStore('kv').get(key));

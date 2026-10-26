@@ -1,6 +1,7 @@
 import { getSettings, saveSettings, parseZones, DEFAULT_SETTINGS } from '../settings.js';
 import { exportBackup, importFile } from '../export.js';
 import { recoverInterrupted, isStandalone } from '../recorder.js';
+import { listRides, deleteSensorData, sensorBytes } from '../storage.js';
 import { fmtBytes } from '../format.js';
 import { APP_VERSION } from '../version.js';
 import { h, toast, exportButton } from '../ui.js';
@@ -37,9 +38,11 @@ export function mountSettings(root, { navigate }) {
       <div class="kv" data-storage></div>
       <div class="actions">
         <button class="btn" data-backup></button>
+        <button class="btn ghost" data-free></button>
         <label class="btn file-btn">Импорт файла<input type="file" accept=".json,application/json" data-import hidden></label>
       </div>
-      <p class="hint">Резервная копия содержит поездки и GPS-треки без данных датчиков.
+      <p class="hint">«Освободить» удаляет данные датчиков у поездок старше 30 дней: это ~95% занятого места.
+        Резервная копия содержит поездки и GPS-треки без данных датчиков.
         Полные сырые данные экспортируются из экрана поездки.</p>
 
       <h2>О приложении</h2>
@@ -60,6 +63,29 @@ export function mountSettings(root, { navigate }) {
   });
 
   exportButton(el.querySelector('[data-backup]'), 'Резервная копия', exportBackup);
+
+  // Sensor rows are ~95% of the stored data. Keep the most recent rides
+  // for algorithm work, offer to drop the rest.
+  const KEEP_DAYS = 30;
+  const oldRides = async () => (await listRides())
+    .filter((r) => r.status !== 'recording' && sensorBytes(r) > 0 && Date.now() - r.startedAt > KEEP_DAYS * 864e5);
+  const freeBtn = el.querySelector('[data-free]');
+  async function showFree() {
+    const rides = await oldRides();
+    const bytes = rides.reduce((a, r) => a + sensorBytes(r), 0);
+    freeBtn.textContent = rides.length ? `Освободить ~${fmtBytes(bytes)}` : 'Освобождать нечего';
+    freeBtn.disabled = !rides.length;
+  }
+  freeBtn.addEventListener('click', async () => {
+    const rides = await oldRides();
+    if (!confirm(`Удалить данные датчиков у ${rides.length} поездок старше ${KEEP_DAYS} дней? `
+      + 'Маршруты, статистика и рейтинг останутся.')) return;
+    for (const r of rides) await deleteSensorData(r.id);
+    toast('Место освобождено');
+    showFree();
+    showStorage();
+  });
+  showFree();
 
   el.querySelector('[data-import]').addEventListener('change', async (e) => {
     const file = e.target.files[0];

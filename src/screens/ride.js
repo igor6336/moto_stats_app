@@ -1,10 +1,10 @@
-import { getRide, getGpsData, putRide, deleteRide } from '../storage.js';
+import { getRide, getGpsData, putRide, deleteRide, deleteSensorData, sensorBytes } from '../storage.js';
 import { computeSummary, routeByZone } from '../algo/stats.js';
 import { exportRideRaw } from '../export.js';
 import { getSettings } from '../settings.js';
 import { drawRoute, zoneColor } from '../map.js';
 import { escapeHtml as esc } from '../format.js';
-import { fmtSpeed, speedUnit, fmtDistance, fmtDuration, fmtDate, zoneBound, escapeHtml } from '../format.js';
+import { fmtSpeed, speedUnit, fmtDistance, fmtDuration, fmtDate, zoneBound, escapeHtml, fmtBytes } from '../format.js';
 import { h, toast, exportButton } from '../ui.js';
 import { getMe } from '../social/client.js';
 import { syncRides, deleteRemoteRide } from '../social/rides.js';
@@ -84,7 +84,7 @@ export function mountRide(root, { params, navigate }) {
         <div><span>Без точного GPS</span><b>${fmtDuration(s.untrackedTime + s.gapTime)}</b></div>
         <div><span>Пик скорости без сглаживания</span><b>${fmtSpeed(s.maxSpeedRaw)} ${u}</b></div>
         <div><span>Калибровка</span><b>${cal}</b></div>
-        <div><span>Записей датчиков</span><b>${ride.counts?.motion ?? '—'}</b></div>
+        <div><span>Записей датчиков</span><b>${ride.sensorsDeleted ? 'удалены' : `${ride.counts?.motion ?? '—'} (~${fmtBytes(sensorBytes(ride))})`}</b></div>
       </div>
       <label class="switch-row">
         <span>Учитывать в рейтинге<small>Снимите, если ехали на машине или пассажиром</small></span>
@@ -92,6 +92,7 @@ export function mountRide(root, { params, navigate }) {
       </label>
       <div class="actions">
         <button class="btn primary" data-export></button>
+        ${ride.sensorsDeleted || !ride.counts?.motion ? '' : '<button class="btn ghost" data-drop-sensors>Удалить данные датчиков</button>'}
         <button class="btn danger ghost" data-delete>Удалить поездку</button>
       </div>`;
     el.querySelector('[data-back]').addEventListener('click', () => navigate('#/history'));
@@ -104,6 +105,13 @@ export function mountRide(root, { params, navigate }) {
       await putRide(fresh);
       if (getMe()) syncRides().then(() => toast(ride.excluded ? 'Поездка убрана из рейтинга' : 'Поездка учтена в рейтинге'))
         .catch(() => toast('Нет связи с сервером, обновится позже'));
+    });
+    el.querySelector('[data-drop-sensors]')?.addEventListener('click', async () => {
+      if (!confirm(`Удалить данные датчиков (~${fmtBytes(sensorBytes(ride))})? Маршрут, статистика и место в рейтинге останутся, `
+        + 'но пересчитать по этой поездке наклон и уточнить разгоны будет нельзя.')) return;
+      await deleteSensorData(ride.id);
+      toast('Данные датчиков удалены');
+      navigate(`#/ride/${ride.id}`);
     });
     el.querySelector('[data-delete]').addEventListener('click', async () => {
       if (!confirm('Удалить поездку вместе с сырыми данными? Это необратимо.')) return;
