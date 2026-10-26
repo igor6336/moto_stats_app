@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" fill="#0b0d10"/>
+  <!-- gauge: centre (256, 286.7), r 174, from 150 deg to 390 deg; orange up to 300 deg -->
+  <g fill="none" stroke-width="36">
+    <path d="M 105.3 373.7 A 174 174 0 1 1 406.7 373.7" stroke="#2a313c"/>
+    <path d="M 105.3 373.7 A 174 174 0 0 1 343 136.0" stroke="#ff7a1a"/>
+  </g>
+  <!-- motorcycle, front view, no rider. Stands on the gauge centre and leans
+       30 deg right, along the old needle towards the orange/grey boundary. -->
+  <g transform="translate(244 338) rotate(30) scale(2.75)">
+    <g fill="#eef1f5" stroke="#0b0d10" stroke-width="1.5" stroke-linejoin="round">
+      <!-- fork legs -->
+      <rect x="-8.5" y="-34" width="3.4" height="22" rx="1.2"/>
+      <rect x="5.1" y="-34" width="3.4" height="22" rx="1.2"/>
+      <!-- tyre -->
+      <rect x="-5.2" y="-24" width="10.4" height="25" rx="5.2"/>
+      <!-- front fender -->
+      <path d="M -6.5 -20 Q 0 -29 6.5 -20 L 6 -16.5 Q 0 -24 -6 -16.5 Z"/>
+      <!-- mirrors on stalks -->
+      <path d="M -13 -50 L -19 -54 L -20 -51 L -14 -47 Z"/>
+      <ellipse cx="-22" cy="-54.5" rx="4.6" ry="3"/>
+      <path d="M 13 -50 L 19 -54 L 20 -51 L 14 -47 Z"/>
+      <ellipse cx="22" cy="-54.5" rx="4.6" ry="3"/>
+      <!-- fairing -->
+      <path d="M -13.5 -31 L 13.5 -31 Q 16 -45 9 -56 L -9 -56 Q -16 -45 -13.5 -31 Z"/>
+    </g>
+    <!-- windscreen -->
+    <path d="M -8 -56.5 L 8 -56.5 L 5.2 -65 L -5.2 -65 Z" fill="#8c96a5" stroke="#0b0d10" stroke-width="1.5" stroke-linejoin="round"/>
+    <!-- headlights -->
+    <path d="M -10.5 -40 L -2.5 -37.5 L -3 -34.5 L -10 -36 Z" fill="#ff7a1a"/>
+    <path d="M 10.5 -40 L 2.5 -37.5 L 3 -34.5 L 10 -36 Z" fill="#ff7a1a"/>
+    <!-- air intake -->
+    <rect x="-3" y="-50" width="6" height="7" rx="1.5" fill="#0b0d10"/>
+  </g>
+</svg>
