@@ -5,11 +5,9 @@ import { riderStats } from '../algo/leaderboard.js';
 import { createMap } from '../map.js';
 import { avatarHtml } from '../social/avatar.js';
 import { lastSeen } from '../social/location.js';
-import { escapeHtml, fmtSpeed, speedUnit, fmtDistance, fmtDuration, fmtDate } from '../format.js';
+import { escapeHtml, fmtSpeed, speedUnit } from '../format.js';
 import { h, toast } from '../ui.js';
 import { routeActions, routeSubtitle } from '../social/route.js';
-
-const RECENT = 10;
 
 const sec = (v) => (v ? `${v.toFixed(2)} с` : '—');
 
@@ -66,17 +64,6 @@ export function mountRider(root, { params, navigate }) {
         <button data-period="all" class="${period === 'all' ? 'on' : ''}">Всё время</button>
       </div>
       ${statsGrid(riderStats(rides, period))}
-      <h2>Последние поездки</h2>
-      ${rides.length ? rides.slice(0, RECENT).map((r) => `
-        <div class="ride-item static">
-          <div class="ri-date">${fmtDate(new Date(r.started_at).getTime())}</div>
-          <div class="ri-stats">
-            <span>${fmtDistance(r.distance_m)}</span>
-            <span>${fmtDuration(r.moving_s)}</span>
-            <span>макс. ${fmtSpeed(r.max_speed_ms)} ${speedUnit()}</span>
-            ${r.accel_0_100_s ? `<span>0–100 ${sec(r.accel_0_100_s)}</span>` : ''}
-          </div>
-        </div>`).join('') : '<div class="hint">Поездок пока нет</div>'}
       <div class="kv">
         <div><span>Код</span><b>${escapeHtml(p.public_id)}</b></div>
         ${friendship ? `<div><span>${isFriend ? 'Друзья с' : 'Запрос отправлен'}</span><b>${new Date(friendship.created_at).toLocaleDateString('ru-RU')}</b></div>` : ''}
