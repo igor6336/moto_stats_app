@@ -109,7 +109,7 @@ class Recorder extends EventTarget {
       r(a?.x, 4), r(a?.y, 4), r(a?.z, 4),
       r(g?.x, 4), r(g?.y, 4), r(g?.z, 4),
       r(rr?.alpha, 3), r(rr?.beta, 3), r(rr?.gamma, 3),
-      r(e.interval, 3),
+      r(e.interval, 5), // iOS reports seconds (0.01667), not ms
     ];
     if (this.state === 'recording') {
       this.buf.motion.push(row);

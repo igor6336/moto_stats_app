@@ -18,9 +18,10 @@ export const UNITS = {
   acc: 'm (horizontal accuracy)', alt: 'm', altAcc: 'm',
   speed: 'm/s (null if not reported)', heading: 'deg from north (null if not reported)',
   ax: 'm/s2 acceleration without gravity (x)', ay: 'm/s2 (y)', az: 'm/s2 (z)',
+  // iOS sign: phone flat face up gives gz = -9.8 (opposite to the W3C spec).
   gx: 'm/s2 accelerationIncludingGravity (x)', gy: 'm/s2 (y)', gz: 'm/s2 (z)',
   ra: 'rotationRate.alpha, deg/s as reported by browser', rb: 'rotationRate.beta', rg: 'rotationRate.gamma',
-  iv: 'DeviceMotionEvent.interval, ms',
+  iv: 'DeviceMotionEvent.interval as reported (iOS: seconds)',
   alpha: 'deg', beta: 'deg', gamma: 'deg',
 };
 
