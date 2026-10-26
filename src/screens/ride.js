@@ -3,6 +3,7 @@ import { computeSummary, routeByZone } from '../algo/stats.js';
 import { exportRideRaw } from '../export.js';
 import { getSettings } from '../settings.js';
 import { drawRoute, zoneColor } from '../map.js';
+import { escapeHtml as esc } from '../format.js';
 import { fmtSpeed, speedUnit, fmtDistance, fmtDuration, fmtDate, zoneBound, escapeHtml } from '../format.js';
 import { h, toast, exportButton } from '../ui.js';
 import { getMe } from '../social/client.js';
@@ -12,6 +13,7 @@ export function mountRide(root, { params, navigate }) {
   const el = h('<section class="screen ride"><div class="loading">Загрузка…</div></section>');
   root.appendChild(el);
   let disposeMap = () => {};
+  let closeFullscreen = () => {};
   let alive = true;
 
   (async () => {
@@ -54,7 +56,10 @@ export function mountRide(root, { params, navigate }) {
           ${fmtDuration(s.untrackedTime + s.gapTime)} из ${fmtDuration(s.duration)} без точного GPS (помещение, туннели,
           глушение в центре Москвы). Дистанция и время в движении за этот отрезок не посчитаны.</div>` : ''}
       </div>
-      <div class="map" data-map></div>
+      <div class="map-wrap">
+        <div class="map" data-map></div>
+        <button class="map-expand" data-expand aria-label="Карта на весь экран">⤢</button>
+      </div>
       <div class="grid stats">
         <div class="stat"><div class="label">Дистанция</div><div class="value">${fmtDistance(s.distance)}</div></div>
         <div class="stat"><div class="label">Время</div><div class="value">${fmtDuration(s.duration)}</div></div>
@@ -112,10 +117,61 @@ export function mountRide(root, { params, navigate }) {
       toast('Поездка удалена');
       navigate('#/history');
     });
-    drawRoute(el.querySelector('[data-map]'), routeByZone(gps, zones)).then((d) => {
+    const runs = routeByZone(gps, zones);
+    const mapBox = el.querySelector('[data-map]');
+    drawRoute(mapBox, runs).then((d) => {
       if (alive) disposeMap = d; else d();
     });
+    const legend = s.zones.map((z, i) => ({
+      color: zoneColor(i),
+      label: z.to === null ? `${zoneBound(z.from)}+` : `${zoneBound(z.from)}–${zoneBound(z.to)}`,
+      time: z.time,
+    }));
+    const expand = () => { closeFullscreen = openFullscreenRoute(runs, legend, u); };
+    el.querySelector('[data-expand]').addEventListener('click', expand);
+    onTap(mapBox, expand);
   }
 
-  return () => { alive = false; disposeMap(); };
+  // A tap (not a pan) on the small map opens it full screen. Capture phase,
+  // because the map engines stop the events they handle.
+  function onTap(box, fn) {
+    let start = null;
+    box.addEventListener('pointerdown', (e) => { start = { x: e.clientX, y: e.clientY, t: Date.now() }; }, true);
+    box.addEventListener('pointerup', (e) => {
+      if (start && Math.hypot(e.clientX - start.x, e.clientY - start.y) < 8 && Date.now() - start.t < 400) fn();
+      start = null;
+    }, true);
+  }
+
+  return () => { alive = false; disposeMap(); closeFullscreen(); };
+}
+
+// Full-screen route map with a legend of speed zones. Returns a close function.
+function openFullscreenRoute(runs, legend, unit) {
+  const root = document.getElementById('overlay-root');
+  const o = h(`<div class="map-full">
+    <div class="map-full-map" data-map></div>
+    <button class="map-close" data-close aria-label="Закрыть">✕</button>
+    <div class="map-legend">
+      <div class="map-legend-title">Зоны скорости, ${esc(unit)}</div>
+      <div class="map-legend-items">${legend.map((z) => `
+        <div class="ml-item ${z.time ? '' : 'ml-none'}">
+          <span class="swatch" style="background:${z.color}"></span>
+          <span class="ml-label">${esc(z.label)}</span>
+          <span class="ml-time">${z.time ? fmtDuration(z.time) : '—'}</span>
+        </div>`).join('')}</div>
+    </div>
+  </div>`);
+  root.append(o);
+  let dispose = () => {};
+  let closed = false;
+  drawRoute(o.querySelector('[data-map]'), runs).then((d) => { if (closed) d(); else dispose = d; });
+  const close = () => {
+    if (closed) return;
+    closed = true;
+    dispose();
+    o.remove();
+  };
+  o.querySelector('[data-close]').addEventListener('click', close);
+  return close;
 }

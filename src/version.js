@@ -1,2 +1,2 @@
 // Keep in sync with VERSION in sw.js.
-export const APP_VERSION = '0.5.4';
+export const APP_VERSION = '0.5.5';
