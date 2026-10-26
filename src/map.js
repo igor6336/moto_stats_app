@@ -6,7 +6,7 @@ let leafletPromise = null;
 export const ZONE_COLORS = ['#4aa3ff', '#3fd28b', '#c6e04a', '#ffc93d', '#ff8a3d', '#ff4d4d', '#e04ad6', '#a46bff'];
 export const zoneColor = (i) => ZONE_COLORS[i % ZONE_COLORS.length];
 
-function loadLeaflet() {
+export function loadLeaflet() {
   if (window.L) return Promise.resolve(window.L);
   if (leafletPromise) return leafletPromise;
   leafletPromise = new Promise((resolve, reject) => {
@@ -30,6 +30,13 @@ function loadLeaflet() {
   return leafletPromise;
 }
 
+export function addTiles(L, map) {
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '© OpenStreetMap',
+  }).addTo(map);
+}
+
 export async function drawRoute(container, runs) {
   const all = runs.flatMap((r) => r.coords);
   if (all.length < 2) {
@@ -40,10 +47,7 @@ export async function drawRoute(container, runs) {
     const L = await loadLeaflet();
     container.innerHTML = '';
     const map = L.map(container, { zoomControl: true, attributionControl: true, preferCanvas: true });
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution: '© OpenStreetMap',
-    }).addTo(map);
+    addTiles(L, map);
     for (const r of runs) {
       L.polyline(r.coords, { color: zoneColor(r.zone), weight: 4, opacity: 0.95 }).addTo(map);
     }

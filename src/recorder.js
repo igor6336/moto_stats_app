@@ -87,7 +87,10 @@ class Recorder extends EventTarget {
     });
   }
 
+  // Also used without prepare() to share position with friends; GPS needs
+  // no user gesture, unlike the motion sensors.
   startGps() {
+    if (this.gpsWatch !== undefined) return;
     if (!('geolocation' in navigator)) { this.status.gps = 'unsupported'; return; }
     this.status.gps = 'waiting';
     this.gpsWatch = navigator.geolocation.watchPosition(this.onPosition, this.onPositionError, {
@@ -301,6 +304,7 @@ class Recorder extends EventTarget {
     this.live = null;
     this.state = 'ready';
     this.emit('change');
+    this.dispatchEvent(new CustomEvent('ride-saved', { detail: ride.id }));
     return ride.id;
   }
 

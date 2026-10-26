@@ -147,3 +147,28 @@ test('rate tracker counts gaps', () => {
   assert.equal(q.maxDtMs, 250);
   assert.ok(Math.abs(q.hz - (5 * 1000) / 316) < 1e-9);
 });
+
+test('spoofed teleport fixes are dropped', () => {
+  const rows = track(new Array(21).fill(20));
+  // two fixes thrown ~25 km away, as GPS spoofing does
+  for (const i of [8, 9]) { rows[i][2] += 0.22; rows[i][7] = 20; }
+  const s = computeSummary(rows);
+  assert.equal(s.points, 19);
+  assert.ok(Math.abs(s.distance - 400) < 1, `distance ${s.distance}`);
+  assert.ok(s.maxSpeed < 21);
+});
+
+test('impossible Doppler speed is ignored', () => {
+  const rows = track(new Array(11).fill(20));
+  rows[5][7] = 250;
+  assert.ok(computeSummary(rows).maxSpeedRaw <= 100);
+});
+
+test('persistent jump re-anchors without counting the teleport', () => {
+  const rows = track(new Array(31).fill(20));
+  for (let i = 15; i < rows.length; i++) rows[i][2] += 0.3; // ~33 km shift for the rest
+  const s = computeSummary(rows);
+  assert.ok(s.distance < 600, `distance ${s.distance}`); // no 33 km jump
+  assert.ok(s.distance > 300);
+  assert.equal(s.gaps, 1);
+});

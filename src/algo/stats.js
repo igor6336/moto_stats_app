@@ -3,40 +3,57 @@
 import { G } from './schema.js';
 import { haversine } from './geo.js';
 
-export const ALGO_VERSION = 1;
+export const ALGO_VERSION = 2;
 
 export const DEFAULTS = Object.freeze({
   maxAccuracy: 25,    // m: fixes worse than this are dropped
   movingSpeed: 1.0,   // m/s: below this the bike is considered stopped
   maxGap: 30,         // s: longer interval between fixes = signal lost
   smoothWindow: 3,    // s: centred window for max speed
+  maxSpeed: 100,      // m/s (360 km/h): faster jumps or Doppler values are GPS errors
+  maxRejects: 5,      // after this many rejected fixes in a row, accept and re-anchor
 });
 
 // Cleans raw GPS rows into parallel arrays. Speed falls back to
 // distance/time where the browser did not report Doppler speed.
+// Fixes that imply an impossible jump (GPS spoofing, as in central Moscow)
+// are dropped. If the jumps persist the track re-anchors at the new place;
+// brk[i] marks such a point so no distance or time is counted across it.
 export function prepareTrack(rows, opts = {}) {
-  const { maxAccuracy, smoothWindow } = { ...DEFAULTS, ...opts };
-  const t = [], lat = [], lon = [], speed = [], acc = [];
+  const { maxAccuracy, smoothWindow, maxSpeed, maxGap, maxRejects } = { ...DEFAULTS, ...opts };
+  const t = [], lat = [], lon = [], speed = [], acc = [], brk = [];
   const reported = [];
+  let rejected = 0;
   for (const r of rows) {
     const la = r[G.lat], lo = r[G.lon], a = r[G.acc];
     if (!Number.isFinite(la) || !Number.isFinite(lo)) continue;
     if (Number.isFinite(a) && a > maxAccuracy) continue;
     const ts = (Number.isFinite(r[G.gpsT]) ? r[G.gpsT] : r[G.t]) / 1000;
-    if (t.length && ts <= t[t.length - 1]) continue; // duplicate or out of order fix
-    t.push(ts); lat.push(la); lon.push(lo); acc.push(a);
+    const k = t.length - 1;
+    if (k >= 0 && ts <= t[k]) continue; // duplicate or out of order fix
+    let isBreak = false;
+    if (k >= 0) {
+      const dt = ts - t[k];
+      if (dt <= maxGap && haversine(lat[k], lon[k], la, lo) / dt > maxSpeed) {
+        if (++rejected < maxRejects) continue;
+        isBreak = true;
+      }
+    }
+    rejected = 0;
+    t.push(ts); lat.push(la); lon.push(lo); acc.push(a); brk.push(isBreak);
     const s = r[G.speed];
-    reported.push(Number.isFinite(s) && s >= 0 ? s : null);
+    reported.push(Number.isFinite(s) && s >= 0 && s <= maxSpeed ? s : null);
   }
   const n = t.length;
   for (let i = 0; i < n; i++) {
     if (reported[i] !== null) { speed.push(reported[i]); continue; }
-    const j = i > 0 ? i - 1 : i + 1;
-    if (j >= n) { speed.push(0); continue; }
+    // Neighbour on the same side of any break.
+    const j = i > 0 && !brk[i] ? i - 1 : i + 1 < n && !brk[i + 1] ? i + 1 : -1;
+    if (j < 0) { speed.push(0); continue; }
     const d = haversine(lat[i], lon[i], lat[j], lon[j]);
-    speed.push(d / Math.abs(t[i] - t[j]));
+    speed.push(Math.min(maxSpeed, d / Math.abs(t[i] - t[j])));
   }
-  return { n, t, lat, lon, acc, speed, smooth: smoothByTime(t, speed, smoothWindow) };
+  return { n, t, lat, lon, acc, speed, brk, smooth: smoothByTime(t, speed, smoothWindow) };
 }
 
 // Centred moving average over a time window (not a sample count),
@@ -84,6 +101,7 @@ export function computeSummary(rows, opts = {}) {
   let movingDistNoGap = 0;
   for (let i = 1; i < tr.n; i++) {
     const dt = tr.t[i] - tr.t[i - 1];
+    if (tr.brk[i]) { s.gaps++; s.gapTime += dt; continue; }
     const d = haversine(tr.lat[i - 1], tr.lon[i - 1], tr.lat[i], tr.lon[i]);
     const v = (tr.speed[i - 1] + tr.speed[i]) / 2;
     const moving = v >= o.movingSpeed;
@@ -120,7 +138,7 @@ export function routeByZone(rows, bounds, opts = {}) {
   let cur = null;
   for (let i = 1; i < tr.n; i++) {
     const a = [tr.lat[i - 1], tr.lon[i - 1]], b = [tr.lat[i], tr.lon[i]];
-    if (tr.t[i] - tr.t[i - 1] > o.maxGap) { cur = null; continue; }
+    if (tr.brk[i] || tr.t[i] - tr.t[i - 1] > o.maxGap) { cur = null; continue; }
     const z = zoneIndex(((tr.speed[i - 1] + tr.speed[i]) / 2) * 3.6, bounds);
     if (!cur || cur.zone !== z) { cur = { zone: z, coords: [a] }; runs.push(cur); }
     cur.coords.push(b);

@@ -4,12 +4,21 @@ import { recoverInterrupted, isStandalone } from '../recorder.js';
 import { fmtBytes } from '../format.js';
 import { APP_VERSION } from '../version.js';
 import { h, toast, exportButton } from '../ui.js';
+import { getMe, socialConfigured } from '../social/client.js';
+import { avatarHtml } from '../social/avatar.js';
+import { escapeHtml } from '../format.js';
 
-export function mountSettings(root) {
+export function mountSettings(root, { navigate }) {
   const s = getSettings();
+  const me = getMe();
   const el = h(`
     <section class="screen settings">
       <h1>Настройки</h1>
+      ${socialConfigured() ? `<button class="account-row" data-account>
+        ${me ? `${avatarHtml(me)}<span><b>${escapeHtml(me.name)}</b><small>${escapeHtml(me.public_id)} · аккаунт</small></span>`
+          : '<span class="avatar avatar-empty">?</span><span><b>Войти / Регистрация</b><small>Друзья, карта и лидеры</small></span>'}
+        <i>›</i>
+      </button>` : ''}
       <label class="field">
         <span>Границы зон скорости, км/ч</span>
         <input type="text" inputmode="decimal" data-zones value="${s.zones.join(', ')}">
@@ -40,6 +49,7 @@ export function mountSettings(root) {
       </div>
     </section>`);
   root.appendChild(el);
+  el.querySelector('[data-account]')?.addEventListener('click', () => navigate('#/account'));
 
   el.querySelector('[data-save]').addEventListener('click', async () => {
     const zones = parseZones(el.querySelector('[data-zones]').value);

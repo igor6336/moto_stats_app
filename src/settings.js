@@ -3,6 +3,7 @@ import { kvGet, kvSet } from './storage.js';
 export const DEFAULT_SETTINGS = Object.freeze({
   zones: [30, 60, 90, 120, 150], // km/h
   units: 'kmh',                 // 'kmh' | 'mph'
+  shareLocation: true,          // show position to friends while the app is open
 });
 
 let current = { ...DEFAULT_SETTINGS };

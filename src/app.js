@@ -4,12 +4,21 @@ import { mountRecord } from './screens/record.js';
 import { mountHistory } from './screens/history.js';
 import { mountRide } from './screens/ride.js';
 import { mountSettings } from './screens/settings.js';
+import { mountAccount } from './screens/account.js';
+import { mountFriends } from './screens/friends.js';
+import { mountLeaders } from './screens/leaders.js';
+import { initSession } from './social/client.js';
+import { startLocationSharing } from './social/location.js';
+import { syncRides } from './social/rides.js';
 
 const routes = [
   { re: /^#\/record$/, tab: 'record', mount: mountRecord },
   { re: /^#\/history$/, tab: 'history', mount: mountHistory },
   { re: /^#\/ride\/(.+)$/, tab: 'history', mount: mountRide, keys: ['id'] },
+  { re: /^#\/friends$/, tab: 'friends', mount: mountFriends },
+  { re: /^#\/leaders$/, tab: 'leaders', mount: mountLeaders },
   { re: /^#\/settings$/, tab: 'settings', mount: mountSettings },
+  { re: /^#\/account$/, tab: 'settings', mount: mountAccount },
 ];
 
 const view = document.getElementById('view');
@@ -55,6 +64,14 @@ async function boot() {
   window.addEventListener('hashchange', render);
   render();
   registerServiceWorker();
+  // Social features load in the background; recording never waits for them.
+  initSession().then((me) => {
+    startLocationSharing();
+    recorder.addEventListener('ride-saved', () => syncRides().catch(() => {}));
+    if (me) syncRides().catch(() => {});
+    // Screens drawn before the session loaded show the logged-out state.
+    if (!/^#\/(record|ride)/.test(location.hash || '#/record')) render();
+  });
 }
 
 boot().catch((e) => {
