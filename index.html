@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#0b0d10">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Мото">
+  <title>Мото телеметрия</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main id="view"></main>
+  <nav class="tabbar">
+    <a href="#/record" data-tab="record">Запись</a>
+    <a href="#/history" data-tab="history">История</a>
+    <a href="#/settings" data-tab="settings">Настройки</a>
+  </nav>
+  <button id="update" class="update-bar" hidden>Доступна новая версия: нажмите, чтобы обновить (не во время записи)</button>
+  <div id="overlay-root"></div>
+  <div id="toast" class="toast"></div>
+  <script type="module" src="src/app.js"></script>
+</body>
+</html>
