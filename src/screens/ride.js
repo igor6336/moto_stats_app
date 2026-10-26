@@ -7,6 +7,7 @@ import { openFullscreenMap, expandable } from '../fullmap.js';
 import { escapeHtml as esc } from '../format.js';
 import { fmtSpeed, speedUnit, fmtDistance, fmtDuration, fmtDate, zoneBound, escapeHtml, fmtBytes } from '../format.js';
 import { h, toast, exportButton } from '../ui.js';
+import { icon } from '../icons.js';
 import { getMe } from '../social/client.js';
 import { syncRides, deleteRemoteRide } from '../social/rides.js';
 
@@ -50,7 +51,7 @@ export function mountRide(root, { params, navigate }) {
       : 'нет';
     el.innerHTML = `
       <div class="ride-head">
-        <button class="btn ghost back" data-back>‹ История</button>
+        <button class="btn ghost back" data-back>${icon('chevron-left')}История</button>
         <h1>${fmtDate(ride.startedAt)}</h1>
         ${ride.status === 'interrupted' ? '<div class="badge warn">Запись прервана, сохранено до последнего сброса</div>' : ''}
         ${s.duration > 60 && (s.untrackedTime + s.gapTime) / s.duration > 0.2 ? `<div class="banner warn">
@@ -61,12 +62,12 @@ export function mountRide(root, { params, navigate }) {
         <div class="map" data-map></div>
       </div>
       <div class="grid stats">
-        <div class="stat"><div class="label">Дистанция</div><div class="value">${fmtDistance(s.distance)}</div></div>
-        <div class="stat"><div class="label">Время</div><div class="value">${fmtDuration(s.duration)}</div></div>
-        <div class="stat"><div class="label">Макс., ${u}</div><div class="value">${fmtSpeed(s.maxSpeed)}</div></div>
-        <div class="stat"><div class="label">Средняя, ${u}</div><div class="value">${fmtSpeed(s.avgMovingSpeed)}</div></div>
-        <div class="stat"><div class="label">В движении</div><div class="value">${fmtDuration(s.movingTime)}</div></div>
-        <div class="stat"><div class="label">Остановки</div><div class="value">${fmtDuration(s.stoppedTime)}</div></div>
+        <div class="stat"><div class="label">${icon('route')}Дистанция</div><div class="value">${fmtDistance(s.distance)}</div></div>
+        <div class="stat"><div class="label">${icon('clock')}Время</div><div class="value">${fmtDuration(s.duration)}</div></div>
+        <div class="stat"><div class="label">${icon('zap')}Макс.</div><div class="value">${fmtSpeed(s.maxSpeed)}<small>${u}</small></div></div>
+        <div class="stat"><div class="label">${icon('activity')}Средняя</div><div class="value">${fmtSpeed(s.avgMovingSpeed)}<small>${u}</small></div></div>
+        <div class="stat"><div class="label">${icon('timer')}В движении</div><div class="value">${fmtDuration(s.movingTime)}</div></div>
+        <div class="stat"><div class="label">${icon('square')}Остановки</div><div class="value">${fmtDuration(s.stoppedTime)}</div></div>
       </div>
       <h2>Зоны скорости, ${u}</h2>
       <div class="zones">${zoneRows}</div>

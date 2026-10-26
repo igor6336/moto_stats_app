@@ -193,3 +193,24 @@ function drawSvg(container, runs, all) {
     ${dot(all[0], '#3fd28b')}${dot(all.at(-1), '#ff4d4d')}</svg>
     <div class="map-note">Карта недоступна без сети</div>`;
 }
+
+// Small static route preview for history cards: [[lat, lon], ...] -> <svg>.
+export function routeThumb(points, size = 60) {
+  if (points.length < 2) return '';
+  const step = Math.max(1, Math.floor(points.length / 160));
+  const pts = points.filter((_, i) => i % step === 0 || i === points.length - 1);
+  const lat0 = pts.reduce((a, p) => a + p[0], 0) / pts.length;
+  const k = Math.cos((lat0 * Math.PI) / 180);
+  const xs = pts.map((p) => p[1] * k), ys = pts.map((p) => -p[0]);
+  const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
+  const pad = 9, w = size - 2 * pad;
+  const scale = w / Math.max(maxX - minX, maxY - minY, 1e-9);
+  const ox = pad + (w - (maxX - minX) * scale) / 2, oy = pad + (w - (maxY - minY) * scale) / 2;
+  const xy = (i) => [((xs[i] - minX) * scale + ox).toFixed(1), ((ys[i] - minY) * scale + oy).toFixed(1)];
+  const line = pts.map((_, i) => xy(i).join(',')).join(' ');
+  const [sx, sy] = xy(0), [ex, ey] = xy(pts.length - 1);
+  return `<svg viewBox="0 0 ${size} ${size}" aria-hidden="true">
+    <defs><linearGradient id="tg" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="#ffae2b"/><stop offset="1" stop-color="#ff5a0f"/></linearGradient></defs>
+    <polyline points="${line}" fill="none" stroke="url(#tg)" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>
+    <circle cx="${sx}" cy="${sy}" r="3" fill="#34d399"/><circle cx="${ex}" cy="${ey}" r="3" fill="#f87171"/></svg>`;
+}

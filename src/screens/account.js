@@ -3,6 +3,7 @@ import { syncRides } from '../social/rides.js';
 import { fileToAvatar, avatarHtml, safeAvatar, openAvatarViewer, AVATAR_FULL } from '../social/avatar.js';
 import { escapeHtml } from '../format.js';
 import { h, toast } from '../ui.js';
+import { icon } from '../icons.js';
 
 export function mountAccount(root, { navigate }) {
   const el = h('<section class="screen account"></section>');
@@ -37,11 +38,11 @@ export function mountAccount(root, { navigate }) {
       <div class="code-box">
         <span>Ваш код для друзей</span>
         <b data-code>${escapeHtml(me.public_id)}</b>
-        <button class="btn" data-copy>Скопировать код</button>
+        <button class="btn" data-copy>${icon('copy')}Копировать</button>
       </div>
       <div class="actions">
-        <button class="btn" data-edit>Изменить профиль</button>
-        <button class="btn danger ghost" data-logout>Выйти</button>
+        <button class="btn" data-edit>${icon('pencil')}Изменить профиль</button>
+        <button class="btn danger ghost" data-logout>${icon('log-out')}Выйти</button>
       </div>`;
     el.querySelector('[data-copy]').addEventListener('click', () => copyCode(me.public_id));
     const photo = safeAvatar(me.avatar);
@@ -72,6 +73,7 @@ export function mountAccount(root, { navigate }) {
           <div class="avatar-pick">
             <label class="avatar-btn">
               <span data-avatar>${avatarHtml(avatar ? { avatar } : me || { name: '+' }, 'avatar xl')}</span>
+              <span class="cam">${icon('camera')}</span>
               <input type="file" accept="image/*" data-file hidden>
             </label>
             <small>Нажмите, чтобы выбрать фото</small>

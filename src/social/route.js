@@ -13,6 +13,7 @@ export function yandexMapsRouteUrl(lat, lon) {
 export function routeAction(loc) {
   return {
     label: 'Маршрут в Яндекс Картах',
+    icon: 'navigation',
     primary: true,
     onClick: () => window.open(yandexMapsRouteUrl(loc.lat, loc.lon), '_blank', 'noopener'),
   };

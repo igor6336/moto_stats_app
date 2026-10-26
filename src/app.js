@@ -1,4 +1,5 @@
 import { loadSettings } from './settings.js';
+import { icon } from './icons.js';
 import { recorder, recoverInterrupted } from './recorder.js';
 import { mountRecord } from './screens/record.js';
 import { mountHistory } from './screens/history.js';
@@ -58,6 +59,9 @@ function registerServiceWorker() {
     };
   });
 }
+
+const TAB_ICONS = { record: 'gauge', history: 'history', friends: 'users', leaders: 'trophy', settings: 'settings-2' };
+document.querySelectorAll('.tabbar a').forEach((a) => a.insertAdjacentHTML('afterbegin', icon(TAB_ICONS[a.dataset.tab])));
 
 async function boot() {
   await loadSettings();

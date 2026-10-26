@@ -1,6 +1,7 @@
 // Small DOM helpers shared by screens.
 import { shareOrDownload } from './export.js';
 import { fmtBytes } from './format.js';
+import { icon } from './icons.js';
 
 export function h(html) {
   const t = document.createElement('template');
@@ -38,23 +39,27 @@ export function longPress(el, ms, fn) {
 
 // Preparing an export involves async reads, after which iOS no longer treats
 // share() as user-initiated. So: first tap prepares, second tap saves.
+const ICON_SAVE = icon('share');
+const ICON_EXPORT = icon('download');
+
 export function exportButton(btn, label, prepare) {
   let ready = null;
-  btn.textContent = label;
+  const idle = () => { btn.innerHTML = `${ICON_EXPORT}${label}`; };
+  idle();
   btn.addEventListener('click', async () => {
     if (ready) {
       const r = await shareOrDownload(ready);
-      if (r !== 'cancelled') { ready = null; btn.textContent = label; }
+      if (r !== 'cancelled') { ready = null; idle(); }
       return;
     }
     btn.disabled = true;
     btn.textContent = 'Готовлю файл…';
     try {
       ready = await prepare();
-      btn.textContent = `Сохранить файл (${fmtBytes(ready.blob.size)})`;
+      btn.innerHTML = `${ICON_SAVE}Сохранить файл (${fmtBytes(ready.blob.size)})`;
     } catch (e) {
       toast(`Ошибка экспорта: ${e.message || e}`);
-      btn.textContent = label;
+      idle();
     } finally {
       btn.disabled = false;
     }
@@ -75,8 +80,8 @@ export function actionSheet(title, subtitle, actions) {
   sheet.querySelector('.sheet-sub').textContent = subtitle || '';
   const close = () => sheet.remove();
   for (const a of actions) {
-    const b = h(`<button class="btn ${a.primary ? 'primary' : ''}"></button>`);
-    b.textContent = a.label;
+    const b = h(`<button class="btn ${a.primary ? 'primary' : ''}">${a.icon ? icon(a.icon) : ''}<span></span></button>`);
+    b.querySelector('span').textContent = a.label;
     b.addEventListener('click', () => { close(); a.onClick(); });
     sheet.querySelector('.sheet-actions').append(b);
   }

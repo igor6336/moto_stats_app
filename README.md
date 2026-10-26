@@ -47,6 +47,7 @@ node scripts/analyze.mjs file.json   # разбор экспортированн
 - `src/algo/`: чистые функции без браузерных API (статистика, калибровка, качество данных, формат). Тестируются на Node и переносятся в нативную версию.
 - `src/recorder.js`: датчики и запись. `src/storage.js`: IndexedDB. `src/export.js`: экспорт и импорт.
 - `src/screens/`: экраны. `src/social/`: аккаунт, друзья, позиции, синхронизация поездок. `supabase/schema.sql`: таблицы и правила доступа (RLS).
+- `fonts/`: шрифты Manrope и Unbounded (SIL OFL, лицензии рядом). `src/icons.js`: иконки Lucide (ISC).
 - `vendor/supabase.js`: клиент Supabase 2.115.0 (UMD), подключается только при использовании друзей.
 - `sw.js`: офлайн-кэш.
 

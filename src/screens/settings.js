@@ -8,6 +8,7 @@ import { h, toast, exportButton } from '../ui.js';
 import { getMe, socialConfigured } from '../social/client.js';
 import { avatarHtml } from '../social/avatar.js';
 import { escapeHtml } from '../format.js';
+import { icon } from '../icons.js';
 
 export function mountSettings(root, { navigate }) {
   const s = getSettings();
@@ -18,8 +19,10 @@ export function mountSettings(root, { navigate }) {
       ${socialConfigured() ? `<button class="account-row" data-account>
         ${me ? `${avatarHtml(me)}<span><b>${escapeHtml(me.name)}</b><small>${escapeHtml(me.public_id)} · аккаунт</small></span>`
           : '<span class="avatar avatar-empty">?</span><span><b>Войти / Регистрация</b><small>Друзья, карта и лидеры</small></span>'}
-        <i>›</i>
+        <i>${icon('chevron-right')}</i>
       </button>` : ''}
+      <h2>Запись</h2>
+      <div class="group">
       <label class="field">
         <span>Границы зон скорости, км/ч</span>
         <input type="text" inputmode="decimal" data-zones value="${s.zones.join(', ')}">
@@ -32,14 +35,15 @@ export function mountSettings(root, { navigate }) {
           <option value="mph" ${s.units === 'mph' ? 'selected' : ''}>mph, мили</option>
         </select>
       </label>
-      <button class="btn primary" data-save>Сохранить</button>
+      </div>
+      <div class="actions"><button class="btn primary" data-save>${icon('check')}Сохранить</button></div>
 
       <h2>Данные</h2>
       <div class="kv" data-storage></div>
       <div class="actions">
         <button class="btn" data-backup></button>
         <button class="btn ghost" data-free></button>
-        <label class="btn file-btn">Импорт файла<input type="file" accept=".json,application/json" data-import hidden></label>
+        <label class="btn file-btn">${icon('upload')}Импорт файла<input type="file" accept=".json,application/json" data-import hidden></label>
       </div>
       <p class="hint">«Освободить» удаляет данные датчиков у поездок старше 30 дней: это ~95% занятого места.
         Резервная копия содержит поездки и GPS-треки без данных датчиков.

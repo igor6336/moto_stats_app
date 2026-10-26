@@ -10,6 +10,7 @@ import { avatarHtml } from '../social/avatar.js';
 import { copyCode } from './account.js';
 import { escapeHtml, fmtSpeed, speedUnit } from '../format.js';
 import { h, toast, actionSheet } from '../ui.js';
+import { icon } from '../icons.js';
 import { routeAction, routeSubtitle } from '../social/route.js';
 
 
@@ -47,11 +48,11 @@ export function mountFriends(root, { navigate }) {
     </label>
     <div class="code-box">
       <span>Ваш код</span><b>${escapeHtml(me.public_id)}</b>
-      <button class="btn" data-copy>Скопировать</button>
+      <button class="btn" data-copy>${icon('copy')}Копировать</button>
     </div>
     <form class="add-friend" data-add>
       <input name="code" placeholder="Код друга" autocapitalize="characters" autocorrect="off" spellcheck="false" required>
-      <button class="btn primary" type="submit">Добавить</button>
+      <button class="btn primary" type="submit" aria-label="Добавить">${icon('user-plus')}</button>
     </form>
     <div data-lists><div class="loading">Загрузка…</div></div>`;
 
@@ -160,7 +161,7 @@ export function mountFriends(root, { navigate }) {
         const cur = locations.get(loc.user_id) || loc;
         actionSheet(p.name, routeSubtitle(cur), [
           routeAction(cur),
-          { label: 'Профиль', onClick: () => navigate(`#/rider/${loc.user_id}`) },
+          { label: 'Профиль', icon: 'user', onClick: () => navigate(`#/rider/${loc.user_id}`) },
         ]);
       };
       if (!e) markers.set(loc.user_id, { m: map.addMarker(loc.lat, loc.lon, html, open), lat: loc.lat, lon: loc.lon, html });

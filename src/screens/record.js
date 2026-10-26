@@ -1,9 +1,25 @@
 import { recorder, isStandalone } from '../recorder.js';
 import { wakeLockState, onWakeLockChange } from '../wakelock.js';
-import { fmtSpeed, speedUnit, fmtDistance, fmtDuration } from '../format.js';
+import { fmtSpeed, speedUnit, speedValue, fmtDistance, fmtDuration } from '../format.js';
+import { getSettings } from '../settings.js';
+import { icon } from '../icons.js';
 import { h, toast, longPress } from '../ui.js';
 
 const STOP_HOLD_MS = 1200;
+
+// Speed gauge: a 270° arc around the number, full at 240 km/h (150 mph).
+const ARC = 'M 40.6 159.4 A 84 84 0 1 1 159.4 159.4';
+const ARC_LEN = 84 * Math.PI * 1.5;
+const GAUGE = `<svg class="gauge" viewBox="0 0 200 180" aria-hidden="true">
+  <defs><linearGradient id="gauge-grad" x1="0" x2="1" y1="0" y2="0">
+    <stop offset="0" stop-color="#34d399"/><stop offset=".45" stop-color="#fbbf24"/>
+    <stop offset=".75" stop-color="#ff6a13"/><stop offset="1" stop-color="#f43f5e"/>
+  </linearGradient></defs>
+  <path class="track" d="${ARC}" fill="none" stroke-width="10" stroke-linecap="round"/>
+  <path class="ticks" d="M 49.1 150.9 A 72 72 0 1 1 150.9 150.9" fill="none" stroke-width="5" stroke-dasharray="1.5 15.46"/>
+  <path class="bar" data-gauge d="${ARC}" fill="none" stroke="url(#gauge-grad)" stroke-width="10" stroke-linecap="round"
+    stroke-dasharray="${ARC_LEN}" stroke-dashoffset="${ARC_LEN}" opacity="0"/>
+</svg>`;
 const UNLOCK_HOLD_MS = 1500;
 
 export function mountRecord(root, { navigate }) {
@@ -20,15 +36,18 @@ export function mountRecord(root, { navigate }) {
         <span class="pill" data-pill="wake">Экран</span>
       </div>
       <div class="speed-block">
-        <div class="speed" data-speed>—</div>
-        <div class="speed-unit" data-unit></div>
+        ${GAUGE}
+        <div class="speed-inner">
+          <div class="speed" data-speed>—</div>
+          <div class="speed-unit" data-unit></div>
+        </div>
       </div>
       <div class="rec-time" data-rectime></div>
       <div class="grid stats">
-        <div class="stat"><div class="label">Дистанция</div><div class="value" data-v="distance">—</div></div>
-        <div class="stat"><div class="label">В движении</div><div class="value" data-v="moving">—</div></div>
-        <div class="stat"><div class="label">Макс.</div><div class="value" data-v="max">—</div></div>
-        <div class="stat"><div class="label">Средняя</div><div class="value" data-v="avg">—</div></div>
+        <div class="stat"><div class="label">${icon('route')}Дистанция</div><div class="value" data-v="distance">—</div></div>
+        <div class="stat"><div class="label">${icon('timer')}В движении</div><div class="value" data-v="moving">—</div></div>
+        <div class="stat"><div class="label">${icon('zap')}Макс.</div><div class="value" data-v="max">—</div></div>
+        <div class="stat"><div class="label">${icon('activity')}Средняя</div><div class="value" data-v="avg">—</div></div>
       </div>
       <div class="calib" data-calib></div>
       <div class="actions" data-actions></div>
@@ -81,6 +100,11 @@ export function mountRecord(root, { navigate }) {
       node.classList.toggle('stale', !fresh);
     }
     $('[data-unit]').textContent = speedUnit();
+    const full = getSettings().units === 'mph' ? 150 : 240;
+    const frac = fresh ? Math.max(0, Math.min(1, speedValue(recorder.lastFix.speed) / full)) : 0;
+    const bar = $('[data-gauge]');
+    bar.setAttribute('stroke-dashoffset', String(ARC_LEN * (1 - frac)));
+    bar.setAttribute('opacity', frac > 0.004 ? '1' : '0');
   }
 
   function updateStats() {
@@ -119,31 +143,31 @@ export function mountRecord(root, { navigate }) {
     box.innerHTML = '';
     const state = recorder.state;
     if (state === 'idle') {
-      const b = h('<button class="btn primary xl">Включить датчики</button>');
+      const b = h(`<button class="btn primary xl">${icon('satellite')}Включить датчики</button>`);
       // prepare() must run synchronously in the tap handler for iOS.
       b.addEventListener('click', () => { recorder.prepare(); b.disabled = true; });
       box.append(b);
       return;
     }
-    const calib = h('<button class="btn">Калибровка</button>');
+    const calib = h(`<button class="btn">${icon('crosshair')}Калибровка</button>`);
     calib.disabled = !!recorder.calib;
     calib.addEventListener('click', runCalibration);
     if (state === 'ready') {
-      const start = h('<button class="btn primary xl">Старт</button>');
+      const start = h(`<button class="btn primary xl">${icon('play')}Старт</button>`);
       start.addEventListener('click', async () => {
         start.disabled = true;
         try { await recorder.start(); } catch (e) { toast(e.message); start.disabled = false; }
       });
       box.append(start, calib);
     } else if (state === 'recording') {
-      const stop = h(`<button class="btn danger xl hold">Стоп<small>удерживайте</small></button>`);
+      const stop = h(`<button class="btn danger xl hold">${icon('square')}<span class="stack">Стоп<small>удерживайте</small></span></button>`);
       longPress(stop, STOP_HOLD_MS, async () => {
         const id = await recorder.stop();
         if (id) navigate(`#/ride/${id}`);
       });
-      const black = h('<button class="btn">Чёрный<br>режим</button>');
+      const black = h(`<button class="btn">${icon('moon')}Чёрный режим</button>`);
       black.addEventListener('click', () => showOverlay('black'));
-      const lock = h('<button class="btn">Блокировка</button>');
+      const lock = h(`<button class="btn">${icon('lock')}Блокировка</button>`);
       lock.addEventListener('click', () => showOverlay('lock'));
       const row = h('<div class="row"></div>');
       row.append(black, lock, calib);
@@ -177,7 +201,7 @@ export function mountRecord(root, { navigate }) {
             <div class="hold-hint">удерживайте ${UNLOCK_HOLD_MS / 1000} с для выхода</div>
           </div>`)
       : h(`<div class="overlay lock hold-area">
-            <div class="hold-hint lock-badge">🔒 Заблокировано · удерживайте ${UNLOCK_HOLD_MS / 1000} с</div>
+            <div class="hold-hint lock-badge">${icon('lock')} Заблокировано · удерживайте ${UNLOCK_HOLD_MS / 1000} с</div>
           </div>`);
     overlayRoot.append(o);
     overlay = { el: o, speed: o.querySelector('.bm-speed'), status: o.querySelector('.bm-status') };

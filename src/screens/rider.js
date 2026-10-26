@@ -8,6 +8,7 @@ import { avatarHtml, safeAvatar, openAvatarViewer } from '../social/avatar.js';
 import { lastSeen } from '../social/location.js';
 import { escapeHtml, fmtSpeed, speedUnit } from '../format.js';
 import { h, toast } from '../ui.js';
+import { icon } from '../icons.js';
 import { routeAction, routeSubtitle } from '../social/route.js';
 
 const sec = (v) => (v ? `${v.toFixed(2)} с` : '—');
@@ -48,7 +49,7 @@ export function mountRider(root, { params, navigate }) {
     const online = loc && Date.now() - new Date(loc.updated_at).getTime() < ONLINE_MS;
     const isFriend = friendship?.status === 'accepted';
     el.innerHTML = `
-      <button class="btn ghost back" data-back>‹ Назад</button>
+      <button class="btn ghost back" data-back>${icon('chevron-left')}Назад</button>
       <div class="profile-card">
         ${avatarHtml(p, 'avatar xl')}
         <div>
@@ -82,8 +83,8 @@ export function mountRider(root, { params, navigate }) {
     const routeBox = el.querySelector('[data-route]');
     if (routeBox) {
       const maps = routeAction(loc);
-      const b = h('<button class="btn primary"></button>');
-      b.textContent = maps.label;
+      const b = h(`<button class="btn primary">${icon('navigation')}<span></span></button>`);
+      b.querySelector('span').textContent = maps.label;
       b.addEventListener('click', maps.onClick);
       routeBox.append(b);
     }
