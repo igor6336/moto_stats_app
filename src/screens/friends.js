@@ -9,7 +9,7 @@ import { avatarHtml } from '../social/avatar.js';
 import { copyCode } from './account.js';
 import { escapeHtml, fmtSpeed, speedUnit } from '../format.js';
 import { h, toast, actionSheet } from '../ui.js';
-import { routeActions, routeSubtitle } from '../social/route.js';
+import { routeAction, routeSubtitle } from '../social/route.js';
 
 
 export function mountFriends(root, { navigate }) {
@@ -153,7 +153,7 @@ export function mountFriends(root, { navigate }) {
         if (loc.self) { navigate('#/account'); return; }
         const cur = locations.get(loc.user_id) || loc;
         actionSheet(p.name, routeSubtitle(cur), [
-          ...routeActions(cur),
+          routeAction(cur),
           { label: 'Профиль', onClick: () => navigate(`#/rider/${loc.user_id}`) },
         ]);
       };

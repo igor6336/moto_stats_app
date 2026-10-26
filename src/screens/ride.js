@@ -70,11 +70,17 @@ export function mountRide(root, { params, navigate }) {
       </div>
       <h2>Зоны скорости, ${u}</h2>
       <div class="zones">${zoneRows}</div>
-      <h2>Разгоны (по GPS)</h2>
+      <h2>Разгоны (по GPS, лучшее за поездку)</h2>
       <div class="kv">
         ${[['0-100', '0–100 км/ч'], ['100-200', '100–200 км/ч'], ['0-200', '0–200 км/ч']].map(([k, label]) =>
           `<div><span>${label}</span><b>${s.accel?.[k] ? `${s.accel[k].toFixed(2)} с` : '—'}</b></div>`).join('')}
       </div>
+      <h2>Наклон и стойка</h2>
+      <div class="kv">
+        ${[['leanLeft', 'Наклон влево'], ['leanRight', 'Наклон вправо'], ['wheelie', 'Стойка']].map(([k, label]) =>
+          `<div><span>${label}</span><b>${Number.isFinite(s[k]) ? `${Math.round(s[k])}°` : '—'}</b></div>`).join('')}
+      </div>
+      <p class="hint">Появятся после настройки алгоритма наклона и стойки. Поездки с сохранёнными данными датчиков пересчитаются.</p>
       <h2>Качество данных</h2>
       <div class="kv">
         <div><span>Точек GPS</span><b>${s.points} из ${gps.length}</b></div>

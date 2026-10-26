@@ -53,9 +53,19 @@ test('a run that never reaches the target gives null', () => {
   assert.equal(accel['100-200'], null);
 });
 
-test('braking in the middle breaks the run', () => {
+test('slowing down on the way counts, the time just gets worse', () => {
+  // 0 -> 65 km/h, brake to 22, then on to 100+: timed from the standing start
   const v = (t) => (t < 3 ? 6 * t : t < 6 ? 18 - 4 * (t - 3) : 6 + 6 * (t - 6));
-  assert.equal(computeSummary(track(v, 20)).accel['0-100'], null);
+  const a = computeSummary(track(v, 20)).accel['0-100'];
+  const exact = 6 + (kmh(100) - 6) / 6; // reaches 100 km/h at ~9.6 s
+  assert.ok(Math.abs(a - exact) < 0.15, `${a}`);
+});
+
+test('stopping completely starts a new attempt', () => {
+  // first attempt stops at 50 km/h -> 0, second goes 0 -> 100 at 5 m/s2
+  const v = (t) => (t < 4 ? 3.5 * t : t < 8 ? Math.max(0, 14 - 4 * (t - 4)) : t < 10 ? 0 : 5 * (t - 10));
+  const a = computeSummary(track(v, 30)).accel['0-100'];
+  assert.ok(Math.abs(a - kmh(100) / 5) < 0.15, `${a}`);
 });
 
 test('a signal gap breaks the run', () => {

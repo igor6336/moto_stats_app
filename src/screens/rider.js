@@ -7,7 +7,7 @@ import { avatarHtml } from '../social/avatar.js';
 import { lastSeen } from '../social/location.js';
 import { escapeHtml, fmtSpeed, speedUnit } from '../format.js';
 import { h, toast } from '../ui.js';
-import { routeActions, routeSubtitle } from '../social/route.js';
+import { routeAction, routeSubtitle } from '../social/route.js';
 
 const sec = (v) => (v ? `${v.toFixed(2)} с` : '—');
 
@@ -73,8 +73,7 @@ export function mountRider(root, { params, navigate }) {
     el.querySelector('[data-back]').addEventListener('click', () => history.back());
     const routeBox = el.querySelector('[data-route]');
     if (routeBox) {
-      // Only Yandex Maps here; the map marker sheet also offers the navigator.
-      const maps = routeActions(loc)[0];
+      const maps = routeAction(loc);
       const b = h('<button class="btn primary"></button>');
       b.textContent = maps.label;
       b.addEventListener('click', maps.onClick);

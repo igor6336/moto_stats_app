@@ -3,15 +3,18 @@
 // linearly between fixes; expected error is a few tenths of a second.
 // Pure functions over the output of prepareTrack().
 
+// A run is timed from the last moment speed rose through the start level
+// to reaching the target; slowing down on the way (traffic, braking) is
+// allowed and just makes the time worse. A drop below the start level
+// ends the attempt; the next rise starts a new one.
 export const RUNS = [
-  // min/max: times outside are rejected as GPS errors or not a real launch.
-  { id: '0-100', from: 0, to: 100, min: 2.5, max: 20 },
-  { id: '100-200', from: 100, to: 200, min: 3, max: 40 },
-  { id: '0-200', from: 0, to: 200, min: 6, max: 60 },
+  // min: faster is a GPS error. max: slower is not an acceleration at all.
+  { id: '0-100', from: 0, to: 100, min: 2.5, max: 60 },
+  { id: '100-200', from: 100, to: 200, min: 3, max: 120 },
+  { id: '0-200', from: 0, to: 200, min: 6, max: 120 },
 ];
 
 const START_KMH = 2;  // a standing start begins when speed rises through this
-const DIP_KMH = 4;    // allowed drop during a run (gear changes)
 const MAX_DT = 2.5;   // s: a longer gap between fixes breaks the run
 
 // Time when speed crossed `level` between two fixes.
@@ -30,12 +33,10 @@ export function bestAccelerations(track) {
       if (brk[i] || t[i] - t[i - 1] > MAX_DT) continue;
       if (!(v[i - 1] < startLevel && v[i] >= startLevel)) continue;
       const tStart = cross(t[i - 1], v[i - 1], t[i], v[i], startLevel);
-      let peak = v[i];
       for (let j = i; j < n; j++) {
         if (j > i && (brk[j] || t[j] - t[j - 1] > MAX_DT)) break;
-        if (v[j] < peak - DIP_KMH) break;
+        if (v[j] < startLevel) break;
         if (t[j] - tStart > run.max) break;
-        peak = Math.max(peak, v[j]);
         if (v[j] >= run.to) {
           const tEnd = j === i ? cross(t[i - 1], v[i - 1], t[i], v[i], run.to) : cross(t[j - 1], v[j - 1], t[j], v[j], run.to);
           const time = tEnd - tStart;
