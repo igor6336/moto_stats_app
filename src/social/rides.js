@@ -37,6 +37,16 @@ async function doSync() {
   let n = 0;
   for (const ride of await listRides()) {
     if (ride.status === 'recording' || !ride.summary) continue;
+    if (ride.excluded) {
+      // Excluded from leaderboards (e.g. recorded in a car): remove the
+      // uploaded summary once.
+      if (ride.synced && ride.synced !== `${me.id}:excluded`) {
+        const { error } = await sb.from('rides').delete().eq('user_id', me.id).eq('local_id', ride.id);
+        if (error) { console.warn('ride unsync', error); continue; }
+      }
+      if (ride.synced !== `${me.id}:excluded`) { ride.synced = `${me.id}:excluded`; await putRide(ride); }
+      continue;
+    }
     const s = await freshSummary(ride);
     if (s.distance < MIN_DISTANCE_M) continue;
     const sig = signature(s);
@@ -72,6 +82,15 @@ async function doSync() {
     n++;
   }
   return n;
+}
+
+// Removes a ride's summary from the server, e.g. when the ride is deleted.
+export async function deleteRemoteRide(localId) {
+  const me = getMe();
+  if (!me) return;
+  const sb = await getClient();
+  const { error } = await sb.from('rides').delete().eq('user_id', me.id).eq('local_id', localId);
+  if (error) throw error;
 }
 
 // Ride summaries of the rider and friends, for leaderboards.

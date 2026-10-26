@@ -5,6 +5,8 @@ import { getSettings } from '../settings.js';
 import { drawRoute, zoneColor } from '../map.js';
 import { fmtSpeed, speedUnit, fmtDistance, fmtDuration, fmtDate, zoneBound, escapeHtml } from '../format.js';
 import { h, toast, exportButton } from '../ui.js';
+import { getMe } from '../social/client.js';
+import { syncRides, deleteRemoteRide } from '../social/rides.js';
 
 export function mountRide(root, { params, navigate }) {
   const el = h('<section class="screen ride"><div class="loading">Загрузка…</div></section>');
@@ -79,14 +81,33 @@ export function mountRide(root, { params, navigate }) {
         <div><span>Калибровка</span><b>${cal}</b></div>
         <div><span>Записей датчиков</span><b>${ride.counts?.motion ?? '—'}</b></div>
       </div>
+      <label class="switch-row">
+        <span>Учитывать в рейтинге<small>Снимите, если ехали на машине или пассажиром</small></span>
+        <input type="checkbox" data-counted ${ride.excluded ? '' : 'checked'}>
+      </label>
       <div class="actions">
         <button class="btn primary" data-export></button>
         <button class="btn danger ghost" data-delete>Удалить поездку</button>
       </div>`;
     el.querySelector('[data-back]').addEventListener('click', () => navigate('#/history'));
     exportButton(el.querySelector('[data-export]'), 'Экспорт сырых данных', () => exportRideRaw(ride.id));
+    el.querySelector('[data-counted]').addEventListener('change', async (e) => {
+      // Re-read: the sync may have updated the stored ride since this screen loaded it.
+      const fresh = (await getRide(ride.id)) || ride;
+      fresh.excluded = ride.excluded = !e.target.checked;
+      if (!fresh.excluded) fresh.synced = null; // upload again
+      await putRide(fresh);
+      if (getMe()) syncRides().then(() => toast(ride.excluded ? 'Поездка убрана из рейтинга' : 'Поездка учтена в рейтинге'))
+        .catch(() => toast('Нет связи с сервером, обновится позже'));
+    });
     el.querySelector('[data-delete]').addEventListener('click', async () => {
       if (!confirm('Удалить поездку вместе с сырыми данными? Это необратимо.')) return;
+      if (getMe()) { // the stored copy may have synced after this screen loaded
+        try { await deleteRemoteRide(ride.id); } catch {
+          toast('Нет связи с сервером: удалите поездку, когда появится интернет');
+          return;
+        }
+      }
       await deleteRide(ride.id);
       toast('Поездка удалена');
       navigate('#/history');

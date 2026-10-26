@@ -20,6 +20,9 @@ export const UNITS = {
   ax: 'm/s2 acceleration without gravity (x)', ay: 'm/s2 (y)', az: 'm/s2 (z)',
   // iOS sign: phone flat face up gives gz = -9.8 (opposite to the W3C spec).
   gx: 'm/s2 accelerationIncludingGravity (x)', gy: 'm/s2 (y)', gz: 'm/s2 (z)',
+  // iOS Safari (checked on a car ride vs GPS course, r=0.88): alpha is the
+  // rotation about the phone's X axis, beta about Y, gamma about Z, unlike
+  // the W3C order. Yaw rate = rotation vector projected on gravity.
   ra: 'rotationRate.alpha, deg/s as reported by browser', rb: 'rotationRate.beta', rg: 'rotationRate.gamma',
   iv: 'DeviceMotionEvent.interval as reported (iOS: seconds)',
   alpha: 'deg', beta: 'deg', gamma: 'deg',
