@@ -3,29 +3,30 @@
 
 export const CATEGORIES = [
   { id: 'maxSpeed', label: 'Макс. скорость', kind: 'speed', per: 'ride', field: 'max_speed_ms' },
-  { id: 'distance', label: 'Пробег', kind: 'distance', per: 'sum', field: 'distance_m' },
-  { id: 'moving', label: 'Время в седле', kind: 'duration', per: 'sum', field: 'moving_s' },
-  { id: 'rides', label: 'Поездок', kind: 'count', per: 'count' },
-  { id: 'longest', label: 'Самая длинная поездка', kind: 'distance', per: 'ride', field: 'distance_m' },
   // Short rides make average speed meaningless, so only rides of 10 km+.
   { id: 'avgSpeed', label: 'Лучшая средняя', kind: 'speed', per: 'ride', field: 'avg_moving_ms', minDistance: 10000 },
   // Acceleration: best (lowest) time of any ride; rides without the run are skipped.
   { id: 'a0_100', label: '0–100', kind: 'time', per: 'ride', field: 'accel_0_100_s', lower: true },
   { id: 'a100_200', label: '100–200', kind: 'time', per: 'ride', field: 'accel_100_200_s', lower: true },
   { id: 'a0_200', label: '0–200', kind: 'time', per: 'ride', field: 'accel_0_200_s', lower: true },
+  // Need the lean/wheelie algorithms (stage 3); shown with a notice until then.
+  { id: 'leanRight', label: 'Наклон вправо', kind: 'angle', per: 'ride', field: 'lean_right_deg', pending: true },
+  { id: 'leanLeft', label: 'Наклон влево', kind: 'angle', per: 'ride', field: 'lean_left_deg', pending: true },
+  { id: 'wheelie', label: 'Стойка', kind: 'angle', per: 'ride', field: 'wheelie_deg', pending: true },
 ];
 
 export const PERIODS = [
-  { id: 'week', label: 'Неделя' },
+  { id: 'day', label: 'День' },
   { id: 'month', label: 'Месяц' },
   { id: 'all', label: 'Всё время' },
 ];
 
-// Start of the calendar week (Monday) or month, in local time.
+// Start of the day, calendar week (Monday) or month, in local time.
 export function periodStart(period, now = new Date()) {
   if (period === 'all') return -Infinity;
   const d = new Date(now);
   d.setHours(0, 0, 0, 0);
+  if (period === 'day') return d.getTime();
   if (period === 'week') d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
   else if (period === 'month') d.setDate(1);
   return d.getTime();

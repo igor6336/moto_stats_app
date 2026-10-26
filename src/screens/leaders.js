@@ -13,6 +13,7 @@ function fmtValue(kind, v) {
   if (kind === 'distance') return fmtDistance(v);
   if (kind === 'duration') return fmtDuration(v);
   if (kind === 'time') return `${v.toFixed(2)} с`;
+  if (kind === 'angle') return `${Math.round(v)}°`;
   return String(v);
 }
 
@@ -39,7 +40,7 @@ export function mountLeaders(root, { navigate }) {
     <div class="chips" data-cats>${CATEGORIES.map((c) => `<button data-cat="${c.id}">${c.label}</button>`).join('')}</div>
     <div class="seg" data-periods>${PERIODS.map((p) => `<button data-period="${p.id}">${p.label}</button>`).join('')}</div>
     <div class="board" data-board><div class="loading">Загрузка…</div></div>
-    <p class="hint">Среди вас и ваших друзей. В зачёт идут поездки от 500 м; «Лучшая средняя» — поездки от 10 км.
+    <p class="hint">Среди вас и ваших друзей. «Лучшая средняя» — поездки от 10 км.
       Разгоны считаются по GPS (1 раз в секунду), точность около ±0,3–0,6 с. Замеры — только на закрытой площадке.</p>`;
 
   body.querySelectorAll('[data-cat]').forEach((b) => b.addEventListener('click', () => { category = b.dataset.cat; render(); }));
@@ -52,6 +53,11 @@ export function mountLeaders(root, { navigate }) {
     const cat = CATEGORIES.find((c) => c.id === category);
     const rows = computeLeaderboard(board.rides, category, period);
     const box = body.querySelector('[data-board]');
+    if (cat.pending && !rows.length) {
+      box.innerHTML = `<div class="empty">Появится после настройки алгоритма наклона и стойки.<br>
+        Для этого нужны поездки на мотоцикле с калибровкой перед стартом.</div>`;
+      return;
+    }
     if (!rows.length) { box.innerHTML = '<div class="empty">Нет поездок за этот период</div>'; return; }
     box.innerHTML = rows.map((r) => {
       const p = board.profiles.get(r.userId) || { name: '?' };

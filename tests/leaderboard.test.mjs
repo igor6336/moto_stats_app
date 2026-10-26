@@ -15,7 +15,9 @@ const rides = [
   ride('c', at(2026, 9, 27), 5000, 40, 600, 25),
 ];
 
-test('periodStart: week starts on Monday, month on the 1st', () => {
+test('periodStart: day starts at midnight, week on Monday, month on the 1st', () => {
+  const day = new Date(periodStart('day', NOW));
+  assert.deepEqual([day.getDate(), day.getHours(), day.getMinutes()], [28, 0, 0]);
   assert.equal(new Date(periodStart('week', NOW)).getDate(), 26);
   assert.equal(new Date(periodStart('week', NOW)).getDay(), 1);
   assert.equal(new Date(periodStart('month', NOW)).getDate(), 1);
@@ -30,14 +32,20 @@ test('max speed is the best single ride within the period', () => {
   assert.equal(all[0].best.distance_m, 90000);
 });
 
-test('distance sums rides of the period', () => {
-  const month = computeLeaderboard(rides, 'distance', 'month', NOW);
-  assert.deepEqual(month.map((r) => [r.userId, r.value]), [['a', 50000], ['b', 15000], ['c', 5000]]);
+test('day period keeps only today', () => {
+  const today = [ride('a', at(2026, 9, 28), 20000, 40), ride('b', at(2026, 9, 27), 20000, 90)];
+  assert.deepEqual(computeLeaderboard(today, 'maxSpeed', 'day', NOW).map((r) => r.userId), ['a']);
 });
 
-test('ride count and shared ranks', () => {
-  const r = computeLeaderboard(rides, 'rides', 'week', NOW);
-  assert.deepEqual(r.map((x) => x.rank), [1, 1, 1]);
+test('equal values share a rank', () => {
+  const same = [ride('a', at(2026, 9, 27), 20000, 50), ride('b', at(2026, 9, 27), 20000, 50), ride('c', at(2026, 9, 27), 20000, 40)];
+  assert.deepEqual(computeLeaderboard(same, 'maxSpeed', 'all', NOW).map((x) => x.rank), [1, 1, 3]);
+});
+
+test('lean and wheelie categories exist and are empty until computed', () => {
+  for (const id of ['leanRight', 'leanLeft', 'wheelie']) assert.deepEqual(computeLeaderboard(rides, id, 'all', NOW), []);
+  const withLean = [{ ...ride('a', at(2026, 9, 27), 20000, 50), lean_right_deg: 41 }];
+  assert.equal(computeLeaderboard(withLean, 'leanRight', 'all', NOW)[0].value, 41);
 });
 
 test('average speed ignores rides shorter than 10 km', () => {
@@ -58,7 +66,8 @@ test('acceleration: lowest time wins, rides without a run are skipped', () => {
 });
 
 test('empty input gives an empty board', () => {
-  assert.deepEqual(computeLeaderboard([], 'distance', 'all', NOW), []);
+  assert.deepEqual(computeLeaderboard([], 'maxSpeed', 'all', NOW), []);
+  assert.throws(() => computeLeaderboard([], 'distance', 'all', NOW));
 });
 
 test('riderStats: totals, bests and period filter', async () => {
