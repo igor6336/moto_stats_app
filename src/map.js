@@ -31,6 +31,9 @@ export function loadLeaflet() {
 }
 
 export function addTiles(L, map) {
+  // Leaflet's default prefix (link with a flag) is not required; the
+  // OpenStreetMap credit is, so it stays.
+  map.attributionControl?.setPrefix(false);
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
     attribution: '© OpenStreetMap',
