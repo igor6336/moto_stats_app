@@ -56,7 +56,7 @@ export function mountLeaders(root, { navigate }) {
     box.innerHTML = rows.map((r) => {
       const p = board.profiles.get(r.userId) || { name: '?' };
       const bike = r.best?.bike || p.bike || '';
-      return `<div class="lb-row ${r.userId === me.id ? 'me' : ''}">
+      return `<div class="lb-row tappable ${r.userId === me.id ? 'me' : ''}" data-user="${escapeHtml(r.userId)}">
         <div class="lb-rank r${r.rank}">${r.rank}</div>
         ${avatarHtml(p)}
         <div class="person-main">
@@ -66,6 +66,9 @@ export function mountLeaders(root, { navigate }) {
         <div class="lb-val">${fmtValue(cat.kind, r.value)}</div>
       </div>`;
     }).join('');
+    box.querySelectorAll('[data-user]').forEach((row) => row.addEventListener('click', () => {
+      navigate(row.dataset.user === me.id ? '#/account' : `#/rider/${row.dataset.user}`);
+    }));
   }
 
   render();

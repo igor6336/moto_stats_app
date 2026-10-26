@@ -308,3 +308,14 @@ form .btn + .btn { margin-top: 10px; }
 .lb-rank.r2 { color: #c9d1dc; }
 .lb-rank.r3 { color: #d58a4f; }
 .lb-val { font-weight: 750; font-size: 17px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+.tappable { cursor: pointer; }
+.tappable:active { filter: brightness(1.25); }
+.ymark { cursor: pointer; }
+.rider-map { height: 200px; margin-bottom: 14px; }
+.ride-item.static { margin-bottom: 8px; }
+.screen.rider .grid.stats { grid-template-columns: 1fr 1fr 1fr; }
+.screen.rider .stat .value { font-size: 18px; white-space: nowrap; }
+.screen.rider .stat .value small { font-size: 12px; color: var(--muted); font-weight: 600; }
+.screen.rider .stat { padding: 10px; }
+.screen.rider .stat .label { font-size: 12px; }

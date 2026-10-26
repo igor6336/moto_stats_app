@@ -60,3 +60,22 @@ test('acceleration: lowest time wins, rides without a run are skipped', () => {
 test('empty input gives an empty board', () => {
   assert.deepEqual(computeLeaderboard([], 'distance', 'all', NOW), []);
 });
+
+test('riderStats: totals, bests and period filter', async () => {
+  const { riderStats } = await import('../src/algo/leaderboard.js');
+  const rs = [
+    { ...ride('a', at(2026, 9, 27), 20000, 50, 1000, 18), accel_0_100_s: 3.9 },
+    { ...ride('a', at(2026, 9, 2), 8000, 60, 500, 25), accel_0_100_s: 3.4, accel_0_200_s: 9.1 },
+    { ...ride('a', at(2026, 7, 1), 100000, 70, 7000, 16), accel_0_100_s: null },
+  ];
+  const all = riderStats(rs, 'all', NOW);
+  assert.equal(all.rides, 3);
+  assert.equal(all.distance, 128000);
+  assert.equal(all.maxSpeed, 70);
+  assert.equal(all.longest, 100000);
+  assert.equal(all.bestAvg, 18); // the 8 km ride is too short to count
+  assert.equal(all.a0_100, 3.4);
+  assert.equal(all.a0_200, 9.1);
+  assert.equal(all.a100_200, null);
+  assert.equal(riderStats(rs, 'month', NOW).rides, 2);
+});

@@ -7,6 +7,7 @@ import { mountSettings } from './screens/settings.js';
 import { mountAccount } from './screens/account.js';
 import { mountFriends } from './screens/friends.js';
 import { mountLeaders } from './screens/leaders.js';
+import { mountRider } from './screens/rider.js';
 import { initSession } from './social/client.js';
 import { startLocationSharing } from './social/location.js';
 import { syncRides } from './social/rides.js';
@@ -17,6 +18,7 @@ const routes = [
   { re: /^#\/ride\/(.+)$/, tab: 'history', mount: mountRide, keys: ['id'] },
   { re: /^#\/friends$/, tab: 'friends', mount: mountFriends },
   { re: /^#\/leaders$/, tab: 'leaders', mount: mountLeaders },
+  { re: /^#\/rider\/(.+)$/, tab: 'friends', mount: mountRider, keys: ['id'] },
   { re: /^#\/settings$/, tab: 'settings', mount: mountSettings },
   { re: /^#\/account$/, tab: 'settings', mount: mountAccount },
 ];

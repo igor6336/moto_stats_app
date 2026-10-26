@@ -2,7 +2,7 @@
 // Yandex is unavailable (no key, network, daily limit); an SVG polyline when
 // offline, so a ride route is always visible.
 // Both engines sit behind the same small adapter:
-//   addLine(coords, color), addMarker(lat, lon, html) -> {update, remove},
+//   addLine(coords, color), addMarker(lat, lon, html, onClick) -> {update, remove},
 //   fit(points), setView(lat, lon, zoom), destroy()
 // Coordinates are [lat, lon] everywhere in the app; Yandex wants [lon, lat].
 import { YANDEX_MAPS_KEY } from './config.js';
@@ -81,12 +81,13 @@ function yandexAdapter(ym, container, center, zoom) {
         style: { stroke: [{ color, width: 4 }] },
       }));
     },
-    addMarker(lat, lon, html) {
+    addMarker(lat, lon, html, onClick) {
       // Yandex puts the element's top-left corner at the point; the inner
       // wrapper centres the marker like Leaflet's iconAnchor.
       const el = document.createElement('div');
       el.className = 'ymark';
       el.innerHTML = html;
+      if (onClick) el.addEventListener('click', onClick);
       const marker = new YMapMarker({ coordinates: [lon, lat] }, el);
       map.addChild(marker);
       return {
@@ -116,8 +117,9 @@ function leafletAdapter(L, container, center, zoom) {
   return {
     kind: 'osm',
     addLine(coords, color) { L.polyline(coords, { color, weight: 4, opacity: 0.95 }).addTo(map); },
-    addMarker(lat, lon, html) {
+    addMarker(lat, lon, html, onClick) {
       const m = L.marker([lat, lon], { icon: icon(html) }).addTo(map);
+      if (onClick) m.on('click', onClick);
       return {
         update(lat2, lon2, html2) {
           m.setLatLng([lat2, lon2]);

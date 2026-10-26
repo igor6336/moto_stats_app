@@ -54,3 +54,26 @@ export function computeLeaderboard(rides, categoryId, period, now = new Date()) 
   rows.forEach((e, i) => { e.rank = i > 0 && rows[i - 1].value === e.value ? rows[i - 1].rank : i + 1; });
   return rows;
 }
+
+// Totals and personal bests of one rider, for the profile screen.
+export function riderStats(rides, period = 'all', now = new Date()) {
+  const from = periodStart(period, now);
+  const s = {
+    rides: 0, distance: 0, moving: 0, maxSpeed: 0, longest: 0, bestAvg: 0,
+    a0_100: null, a100_200: null, a0_200: null,
+  };
+  const minOf = (a, b) => (b > 0 && (a === null || b < a) ? b : a);
+  for (const r of rides) {
+    if (new Date(r.started_at).getTime() < from) continue;
+    s.rides++;
+    s.distance += r.distance_m;
+    s.moving += r.moving_s;
+    s.maxSpeed = Math.max(s.maxSpeed, r.max_speed_ms);
+    s.longest = Math.max(s.longest, r.distance_m);
+    if (r.distance_m >= 10000) s.bestAvg = Math.max(s.bestAvg, r.avg_moving_ms);
+    s.a0_100 = minOf(s.a0_100, r.accel_0_100_s);
+    s.a100_200 = minOf(s.a100_200, r.accel_100_200_s);
+    s.a0_200 = minOf(s.a0_200, r.accel_0_200_s);
+  }
+  return s;
+}

@@ -8,7 +8,7 @@ import { copyCode } from './account.js';
 import { escapeHtml, fmtSpeed, speedUnit } from '../format.js';
 import { h, toast } from '../ui.js';
 
-function lastSeen(loc) {
+export function lastSeen(loc) {
   if (!loc) return 'не делится местоположением';
   const ago = Date.now() - new Date(loc.updated_at).getTime();
   if (ago < ONLINE_MS) return loc.riding ? `в пути · ${fmtSpeed(loc.speed)} ${speedUnit()}` : 'в сети';
@@ -110,11 +110,15 @@ export function mountFriends(root, { navigate }) {
       if (b.dataset.name && !confirm(`Удалить ${b.dataset.name} из друзей?`)) return;
       try { await removeFriend(b.dataset.remove); refresh(); } catch (err) { toast(humanError(err)); }
     }));
-    box.querySelectorAll('.person').forEach((row) => row.addEventListener('click', (e) => {
-      if (e.target.closest('button')) return;
-      const loc = locations.get(row.dataset.id);
-      if (loc && map) { map.setView(loc.lat, loc.lon, 15); el.scrollTop = 0; document.getElementById('view').scrollTop = 0; }
-    }));
+    // Accepted friends open their profile; pending requests have nothing to show yet.
+    box.querySelectorAll('.person').forEach((row) => {
+      if (!data.friends.some((p) => p.id === row.dataset.id)) return;
+      row.classList.add('tappable');
+      row.addEventListener('click', (e) => {
+        if (e.target.closest('button')) return;
+        navigate(`#/rider/${row.dataset.id}`);
+      });
+    });
   }
 
   function profileOf(id) {
@@ -151,7 +155,8 @@ export function mountFriends(root, { navigate }) {
       const html = `<div class="fmark ${online ? 'on' : ''} ${riding ? 'riding' : ''} ${loc.self ? 'me' : ''} ${ghost ? 'ghost' : ''}">
           ${avatarHtml(p)}<span>${escapeHtml(label)}${speed ? ' · ' : ''}${speed}</span></div>`;
       const e = markers.get(loc.user_id);
-      if (!e) markers.set(loc.user_id, { m: map.addMarker(loc.lat, loc.lon, html), lat: loc.lat, lon: loc.lon, html });
+      const open = () => navigate(loc.self ? '#/account' : `#/rider/${loc.user_id}`);
+      if (!e) markers.set(loc.user_id, { m: map.addMarker(loc.lat, loc.lon, html, open), lat: loc.lat, lon: loc.lon, html });
       else if (e.lat !== loc.lat || e.lon !== loc.lon || e.html !== html) {
         e.m.update(loc.lat, loc.lon, e.html !== html ? html : undefined);
         Object.assign(e, { lat: loc.lat, lon: loc.lon, html });

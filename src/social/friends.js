@@ -72,3 +72,18 @@ export async function removeFriend(otherId) {
     .or(`and(requester.eq.${me},addressee.eq.${otherId}),and(requester.eq.${otherId},addressee.eq.${me})`);
   if (error) throw error;
 }
+
+// Everything the profile screen shows about one rider (self or friend).
+export async function fetchRider(id) {
+  const sb = await getClient();
+  const me = getMe().id;
+  const [profile, rides, loc, link] = await Promise.all([
+    sb.from('profiles').select(PROFILE_COLS).eq('id', id).maybeSingle(),
+    sb.from('rides').select('*').eq('user_id', id).order('started_at', { ascending: false }),
+    sb.from('locations').select('*').eq('user_id', id).maybeSingle(),
+    sb.from('friendships').select('*')
+      .or(`and(requester.eq.${me},addressee.eq.${id}),and(requester.eq.${id},addressee.eq.${me})`),
+  ]);
+  for (const r of [profile, rides, loc, link]) if (r.error) throw r.error;
+  return { profile: profile.data, rides: rides.data, location: loc.data, friendship: link.data?.[0] || null };
+}
