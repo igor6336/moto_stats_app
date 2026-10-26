@@ -2,8 +2,8 @@
 // publishable key is public by design (access is limited by row level
 // security in supabase/schema.sql). Never put the service_role key here.
 // Empty values keep the app fully local: social screens show a notice.
-export const SUPABASE_URL = '';
-export const SUPABASE_KEY = '';
+export const SUPABASE_URL = 'https://dmtuusnkmsepvzufmwgd.supabase.co';
+export const SUPABASE_KEY = 'sb_publishable_NQQ2v9fkh6IbhKebOnNWUg_9qoWKs_S';
 
 // Accounts use login + password. Supabase needs an e-mail, so the login is
 // mapped to a placeholder address that never receives mail
