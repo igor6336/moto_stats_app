@@ -294,6 +294,7 @@ form .btn + .btn { margin-top: 10px; }
 .fmark.on .avatar { border-color: var(--ok); }
 .fmark.riding .avatar { border-color: var(--accent); }
 .fmark.me .avatar { border-color: #4aa3ff; }
+.fmark.ghost { opacity: .55; }
 .fmark span {
   margin-top: 2px; padding: 1px 6px; border-radius: 6px; background: rgba(11, 13, 16, .85); color: var(--text);
   font-size: 12px; font-weight: 650; white-space: nowrap; max-width: 90px; overflow: hidden; text-overflow: ellipsis;

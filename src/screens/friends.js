@@ -63,6 +63,7 @@ export function mountFriends(root, { navigate }) {
   body.querySelector('[data-share]').addEventListener('change', async (e) => {
     try {
       await setSharing(e.target.checked);
+      updateMarkers();
       toast(e.target.checked ? 'Друзья видят вас, пока приложение открыто' : 'Режим невидимки');
     } catch (err) { toast(humanError(err)); }
   });
@@ -121,16 +122,31 @@ export function mountFriends(root, { navigate }) {
     return data.friends.find((p) => p.id === id);
   }
 
+  // Own marker comes from this phone's GPS, so it is shown even in ghost
+  // mode or when the fix is too coarse to send; the server row is only a
+  // fallback before the first fix.
+  function visibleLocations() {
+    const out = [...locations.values()].filter((l) => l.user_id !== me.id);
+    const fix = recorder.lastFix;
+    if (fix) {
+      out.push({ user_id: me.id, lat: fix.lat, lon: fix.lon, riding: recorder.recording, updated_at: new Date().toISOString(), self: true });
+    } else if (locations.has(me.id)) {
+      out.push({ ...locations.get(me.id), self: true });
+    }
+    return out;
+  }
+
   function updateMarkers() {
     if (!map) return;
     const seen = new Set();
-    for (const loc of locations.values()) {
+    for (const loc of visibleLocations()) {
       const p = profileOf(loc.user_id);
       if (!p) continue;
       seen.add(loc.user_id);
       const online = Date.now() - new Date(loc.updated_at).getTime() < ONLINE_MS;
-      const html = `<div class="fmark ${online ? 'on' : ''} ${loc.riding && online ? 'riding' : ''} ${p.id === me.id ? 'me' : ''}">
-          ${avatarHtml(p)}<span>${escapeHtml(p.id === me.id ? 'Вы' : p.name)}</span></div>`;
+      const ghost = loc.self && !sharingEnabled();
+      const html = `<div class="fmark ${online ? 'on' : ''} ${loc.riding && online ? 'riding' : ''} ${loc.self ? 'me' : ''} ${ghost ? 'ghost' : ''}">
+          ${avatarHtml(p)}<span>${escapeHtml(loc.self ? (ghost ? 'Вы · невидимка' : 'Вы') : p.name)}</span></div>`;
       const e = markers.get(loc.user_id);
       if (!e) markers.set(loc.user_id, { m: map.addMarker(loc.lat, loc.lon, html), lat: loc.lat, lon: loc.lon, html });
       else if (e.lat !== loc.lat || e.lon !== loc.lon || e.html !== html) {
@@ -180,9 +196,12 @@ export function mountFriends(root, { navigate }) {
 
   // "Online" and "last seen" age without new events.
   const timer = setInterval(() => { updateMarkers(); renderLists(); }, 30000);
+  const onGps = () => updateMarkers();
+  recorder.addEventListener('gps', onGps);
 
   return () => {
     alive = false;
+    recorder.removeEventListener('gps', onGps);
     clearInterval(timer);
     unwatch();
     map?.destroy();

@@ -6,7 +6,8 @@ import { recorder } from '../recorder.js';
 import { getSettings, saveSettings } from '../settings.js';
 
 const SEND_EVERY_MS = 10000;
-const MAX_ACCURACY = 100;
+// Indoors iOS often reports 100 m+; for a friends map that is still useful.
+const MAX_ACCURACY = 1000;
 export const ONLINE_MS = 2 * 60 * 1000;
 
 let lastSent = 0;
