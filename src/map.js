@@ -108,7 +108,12 @@ function yandexAdapter(ym, container, center, zoom) {
 }
 
 function leafletAdapter(L, container, center, zoom) {
-  const map = L.map(container, { zoomControl: false, attributionControl: true, preferCanvas: true }).setView(center, zoom);
+  // No animations: removing a map mid-animation (leaving the screen) throws
+  // inside Leaflet.
+  const map = L.map(container, {
+    zoomControl: false, attributionControl: true, preferCanvas: true,
+    zoomAnimation: false, fadeAnimation: false, markerZoomAnimation: false,
+  }).setView(center, zoom);
   // Leaflet's default prefix (a link with a flag) is not required; the
   // OpenStreetMap credit is, so it stays.
   map.attributionControl.setPrefix(false);
