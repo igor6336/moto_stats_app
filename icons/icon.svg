@@ -8,37 +8,40 @@
   <!-- sport bike, front view, no rider; leans 30 deg along the old needle.
        Drawn upright with the contact patch at the origin. -->
   <g transform="translate(240 352) rotate(30) scale(1.85)">
-    <g fill="#eef1f5">
+    <g fill="#eef1f5" stroke="#0b0d10" stroke-width="2" stroke-linejoin="round">
       <!-- mirrors -->
-      <path d="M 22 -88 Q 31 -94 41 -93 Q 45 -89 42 -84 Q 32 -82 23 -83 Z"/>
-      <path d="M -22 -88 Q -31 -94 -41 -93 Q -45 -89 -42 -84 Q -32 -82 -23 -83 Z"/>
+      <path d="M 21 -91 L 30 -95 Q 42 -97 46 -92 Q 45 -85 35 -85 L 23 -86 Z"/>
+      <path d="M -21 -91 L -30 -95 Q -42 -97 -46 -92 Q -45 -85 -35 -85 L -23 -86 Z"/>
       <!-- levers -->
-      <path d="M 25 -70 L 37 -63 L 35.5 -60.5 L 24 -66.5 Z"/>
-      <path d="M -25 -70 L -37 -63 L -35.5 -60.5 L -24 -66.5 Z"/>
-      <!-- fairing -->
-      <path d="M 0 -101 Q 16 -101 22 -93 L 26 -78 Q 30 -52 26 -32 Q 23 -22 16 -16 L -16 -16 Q -23 -22 -26 -32 Q -30 -52 -26 -78 L -22 -93 Q -16 -101 0 -101 Z"/>
+      <path d="M 24 -71 L 38 -62 L 36 -59 L 23 -67 Z"/>
+      <path d="M -24 -71 L -38 -62 L -36 -59 L -23 -67 Z"/>
+      <!-- lower fairing wrapping the wheel -->
+      <path d="M -26 -68 Q -32 -44 -24 -27 Q -19 -18 -12 -13 L 12 -13 Q 19 -18 24 -27 Q 32 -44 26 -68 Z"/>
+      <!-- upper fairing (nose) -->
+      <path d="M 0 -103 Q 16 -103 22 -95 L 26 -80 L 23 -66 Q 12 -59 0 -57 Q -12 -59 -23 -66 L -26 -80 L -22 -95 Q -16 -103 0 -103 Z"/>
     </g>
     <g fill="#0b0d10">
       <!-- screen line -->
-      <path d="M -22 -90 L 0 -85.5 L 22 -90 L 22 -87.6 L 0 -83 L -22 -87.6 Z"/>
+      <path d="M -22 -92 L 0 -87.5 L 22 -92 L 22 -89.6 L 0 -85 L -22 -89.6 Z"/>
       <!-- headlights -->
-      <path d="M -21.5 -75 Q -13 -79.5 -4 -73.5 L -7 -67 Q -15 -65 -21 -69.5 Z"/>
-      <path d="M 21.5 -75 Q 13 -79.5 4 -73.5 L 7 -67 Q 15 -65 21 -69.5 Z"/>
+      <path d="M -21 -80 Q -12 -83 -5 -76 Q -7 -69.5 -12.5 -68.5 Q -19.5 -70.5 -21 -80 Z"/>
+      <path d="M 21 -80 Q 12 -83 5 -76 Q 7 -69.5 12.5 -68.5 Q 19.5 -70.5 21 -80 Z"/>
       <!-- opening around the front wheel -->
-      <path d="M -13.5 -16 L -15.5 -48 Q 0 -60 15.5 -48 L 13.5 -16 Z"/>
-      <!-- side stripes -->
-      <path d="M -24 -60 Q -24 -36 -17 -24 L -19 -23 Q -27 -36 -26.5 -60 Z"/>
-      <path d="M 24 -60 Q 24 -36 17 -24 L 19 -23 Q 27 -36 26.5 -60 Z"/>
+      <path d="M -15 -13 L -17 -50 Q 0 -57 17 -50 L 15 -13 Z"/>
     </g>
-    <g fill="#eef1f5">
-      <!-- fork legs -->
-      <rect x="-11.5" y="-48" width="3" height="28" rx="1.2"/>
-      <rect x="8.5" y="-48" width="3" height="28" rx="1.2"/>
-      <!-- fender -->
-      <path d="M -7.5 -53 Q 0 -56.5 7.5 -53 L 7 -43 L -7 -43 Z"/>
+    <!-- double side lines -->
+    <g fill="none" stroke="#0b0d10" stroke-width="1.6" stroke-linecap="round">
+      <path d="M -21.5 -60 Q -25 -36 -15.5 -16"/>
+      <path d="M 21.5 -60 Q 25 -36 15.5 -16"/>
+    </g>
+    <g fill="#eef1f5" stroke="#0b0d10" stroke-width="1.6" stroke-linejoin="round">
+      <!-- fork caps -->
+      <rect x="-13" y="-51" width="5" height="7" rx="1.5"/>
+      <rect x="8" y="-51" width="5" height="7" rx="1.5"/>
       <!-- tyre -->
-      <rect x="-5.5" y="-45" width="11" height="46" rx="5"/>
+      <rect x="-5.8" y="-47" width="11.6" height="48" rx="5"/>
+      <!-- fender -->
+      <path d="M -8.5 -52 Q 0 -56 8.5 -52 L 7.5 -44 L -7.5 -44 Z"/>
     </g>
-    <path d="M -7.5 -42.6 L 7.5 -42.6" stroke="#0b0d10" stroke-width="1.6"/>
   </g>
 </svg>
