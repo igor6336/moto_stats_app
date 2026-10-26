@@ -190,3 +190,55 @@ test('time without a usable fix is reported', () => {
   assert.ok(Math.abs(s.untrackedTime - 30) < 1.01, `${s.untrackedTime}`);
   assert.equal(computeSummary([], { durationS: 50 }).untrackedTime, 50);
 });
+
+test('coarse fixes (GPS jamming) give an approximate distance', () => {
+  // 10 min at 15 m/s: first 5 min only Wi-Fi/cell fixes every 5 s, ±60 m noise, no speed
+  const rows = track(new Array(601).fill(15));
+  let seed = 7; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647 - 0.5) * 2;
+  const coarse = [];
+  for (let i = 0; i <= 300; i += 5) {
+    const r = [...rows[i]];
+    [r[2], r[3]] = offset(r[2], r[3], rnd() * 60, rnd() * 60);
+    r[4] = 80 + Math.abs(rnd()) * 100; r[7] = null; r[8] = null;
+    coarse.push(r);
+  }
+  const mixed = [...coarse, ...rows.slice(301)];
+  const s = computeSummary(mixed, { durationS: 600 });
+  assert.ok(Math.abs(s.distance - 9000) < 9000 * 0.15, `distance ${s.distance}`);
+  assert.ok(s.approxDistance > 3500 && s.approxDistance < 5500, `approx ${s.approxDistance}`);
+  assert.ok(s.untrackedTime < 10, `untracked ${s.untrackedTime}`);
+  assert.ok(s.maxSpeed <= 15.01, 'coarse fixes never set the max speed');
+  assert.ok(Math.abs(s.avgMovingSpeed - 15) < 0.1, 'average from precise data only');
+});
+
+test('coarse jitter while standing adds no distance', () => {
+  const rows = [];
+  let seed = 3; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647 - 0.5) * 2;
+  for (let i = 0; i < 300; i += 5) {
+    const [lat, lon] = offset(LAT0, LON0, rnd() * 50, rnd() * 50);
+    rows.push([i * 1000, i * 1000, lat, lon, 90, 0, 0, null, null]);
+  }
+  const s = computeSummary(rows);
+  assert.ok(s.distance < 100, `distance ${s.distance}`);
+  assert.equal(s.approxDistance, 0);
+});
+
+test('route runs are in time order and mark the approximate part', () => {
+  const rows = track(new Array(121).fill(15));
+  for (let i = 0; i <= 60; i++) rows[i][4] = 120; // first minute coarse
+  const runs = routeByZone(rows, [50]);
+  assert.equal(runs[0].approx, true);
+  assert.ok(!runs[runs.length - 1].approx);
+});
+
+test('jamming in the middle of a ride is not counted twice', () => {
+  // 10 min at 15 m/s; minutes 3-7 only coarse fixes every 5 s
+  const rows = track(new Array(601).fill(15));
+  const mixed = rows.filter((r, i) => i < 180 || i > 420 || i % 5 === 0)
+    .map((r, i0) => { const t = r[0] / 1000; if (t < 180 || t > 420) return r; const c = [...r]; c[4] = 120; c[7] = null; return c; });
+  const s = computeSummary(mixed, { durationS: 600 });
+  assert.ok(Math.abs(s.distance - 9000) < 9000 * 0.05, `distance ${s.distance}`);
+  assert.ok(s.gapTime < 1, `gap ${s.gapTime}`);
+  assert.equal(s.gaps, 0);
+  assert.ok(Math.abs(s.trackedTime + s.approxTime - 600) < 2, `tracked ${s.trackedTime} approx ${s.approxTime}`);
+});

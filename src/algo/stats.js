@@ -3,8 +3,9 @@
 import { G } from './schema.js';
 import { haversine } from './geo.js';
 import { bestAccelerations } from './accel.js';
+import { coarseRuns } from './coarse.js';
 
-export const ALGO_VERSION = 4;
+export const ALGO_VERSION = 5;
 
 export const DEFAULTS = Object.freeze({
   maxAccuracy: 25,    // m: fixes worse than this are dropped
@@ -93,20 +94,26 @@ export function computeSummary(rows, opts = {}) {
     points: tr.n,
     distance: 0, duration: 0, trackedTime: 0, movingTime: 0, stoppedTime: 0,
     gapTime: 0, gaps: 0,
-    untrackedTime: 0, // s of the ride with no usable fix (poor accuracy, GPS jamming)
+    untrackedTime: 0, // s of the ride with no usable fix at all
+    // Part of distance/moving time from coarse fixes (GPS jamming): included
+    // in distance and movingTime, never in speeds, zones or acceleration.
+    approxDistance: 0, approxTime: 0,
     maxSpeed: 0, maxSpeedRaw: 0, maxSpeedT: null,
     avgMovingSpeed: 0, avgSpeed: 0,
     zones, bbox: null,
     accel: { '0-100': null, '100-200': null, '0-200': null }, // s, best per ride
   };
-  if (tr.n === 0) {
-    if (Number.isFinite(o.durationS)) s.duration = s.untrackedTime = o.durationS;
-    return s;
-  }
-
+  // A gap in the precise track that coarse fixes fill is accounted by the
+  // approximate run (its distance and time), not twice.
+  const approx = coarseRuns(rows, tr, o);
+  const approxIn = (a, b) => approx.reduce((sum, r) => sum + Math.max(0, Math.min(b, r.t1) - Math.max(a, r.t0)), 0);
   let movingDistNoGap = 0;
   for (let i = 1; i < tr.n; i++) {
     const dt = tr.t[i] - tr.t[i - 1];
+    if (tr.brk[i] || dt > o.maxGap) {
+      const filled = approx.length ? approxIn(tr.t[i - 1], tr.t[i]) : 0;
+      if (filled > 0) { s.gapTime += Math.max(0, dt - filled); continue; }
+    }
     if (tr.brk[i]) { s.gaps++; s.gapTime += dt; continue; }
     const d = haversine(tr.lat[i - 1], tr.lon[i - 1], tr.lat[i], tr.lon[i]);
     const v = (tr.speed[i - 1] + tr.speed[i]) / 2;
@@ -128,17 +135,36 @@ export function computeSummary(rows, opts = {}) {
     if (tr.smooth[i] > s.maxSpeed) { s.maxSpeed = tr.smooth[i]; s.maxSpeedT = tr.t[i]; }
     if (tr.speed[i] > s.maxSpeedRaw) s.maxSpeedRaw = tr.speed[i];
   }
-
-  s.duration = Number.isFinite(o.durationS) ? o.durationS : tr.t[tr.n - 1] - tr.t[0];
+  // Average speed from precise data only, before approximate time is added.
   s.avgMovingSpeed = s.movingTime > 0 ? movingDistNoGap / s.movingTime : 0;
+
+  for (const r of approx) {
+    s.approxTime += r.time;
+    if (!r.moving) { s.stoppedTime += r.time; continue; }
+    s.approxDistance += r.distance;
+    s.movingTime += r.time;
+  }
+  s.distance += s.approxDistance;
+
+  const all = [...tr.lat.map((la, i) => [la, tr.lon[i]]), ...approx.flatMap((r) => r.coords)];
+  if (!all.length) {
+    if (Number.isFinite(o.durationS)) s.duration = s.untrackedTime = o.durationS;
+    return s;
+  }
+  const t0 = Math.min(tr.n ? tr.t[0] : Infinity, ...approx.map((r) => r.t0));
+  const t1 = Math.max(tr.n ? tr.t[tr.n - 1] : -Infinity, ...approx.map((r) => r.t1));
+  s.duration = Number.isFinite(o.durationS) ? o.durationS : t1 - t0;
   s.avgSpeed = s.duration > 0 ? s.distance / s.duration : 0;
-  s.untrackedTime = Math.max(0, s.duration - s.trackedTime - s.gapTime);
+  s.untrackedTime = Math.max(0, s.duration - s.trackedTime - s.gapTime - s.approxTime);
   s.accel = bestAccelerations(tr);
-  s.bbox = [Math.min(...tr.lat), Math.min(...tr.lon), Math.max(...tr.lat), Math.max(...tr.lon)];
+  const lats = all.map((p) => p[0]), lons = all.map((p) => p[1]);
+  s.bbox = [Math.min(...lats), Math.min(...lons), Math.max(...lats), Math.max(...lons)];
   return s;
 }
 
-// Splits the route into runs of the same speed zone, for colouring the map.
+// Splits the route into runs of the same speed zone, for colouring the map,
+// plus approximate runs (approx: true) from coarse fixes. Runs are in time
+// order, so the first point is the start and the last one the finish.
 export function routeByZone(rows, bounds, opts = {}) {
   const tr = prepareTrack(rows, opts);
   const o = { ...DEFAULTS, ...opts };
@@ -148,8 +174,11 @@ export function routeByZone(rows, bounds, opts = {}) {
     const a = [tr.lat[i - 1], tr.lon[i - 1]], b = [tr.lat[i], tr.lon[i]];
     if (tr.brk[i] || tr.t[i] - tr.t[i - 1] > o.maxGap) { cur = null; continue; }
     const z = zoneIndex(((tr.speed[i - 1] + tr.speed[i]) / 2) * 3.6, bounds);
-    if (!cur || cur.zone !== z) { cur = { zone: z, coords: [a] }; runs.push(cur); }
+    if (!cur || cur.zone !== z) { cur = { zone: z, t0: tr.t[i - 1], coords: [a] }; runs.push(cur); }
     cur.coords.push(b);
   }
-  return runs;
+  for (const r of coarseRuns(rows, tr, o)) {
+    if (r.coords.length > 1) runs.push({ approx: true, t0: r.t0, coords: r.coords });
+  }
+  return runs.sort((x, y) => x.t0 - y.t0);
 }

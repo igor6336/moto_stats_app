@@ -2,6 +2,7 @@ import { recorder, isStandalone } from '../recorder.js';
 import { wakeLockState, onWakeLockChange } from '../wakelock.js';
 import { fmtSpeed, speedUnit, speedValue, fmtDistance, fmtDuration } from '../format.js';
 import { getSettings } from '../settings.js';
+import { DEFAULTS } from '../algo/stats.js';
 import { icon } from '../icons.js';
 import { h, toast, longPress } from '../ui.js';
 
@@ -30,6 +31,7 @@ export function mountRecord(root, { navigate }) {
         Во вкладке Safari данные могут быть удалены.
       </div>
       <div class="banner error" data-error hidden></div>
+      <div class="banner warn" data-weak hidden></div>
       <div class="pills">
         <span class="pill" data-pill="gps">GPS</span>
         <span class="pill" data-pill="motion">Датчики</span>
@@ -70,9 +72,17 @@ export function mountRecord(root, { navigate }) {
 
   function updatePills() {
     const s = recorder.status;
+    const weak = weakGps();
+    const banner = $('[data-weak]');
+    banner.hidden = !weak;
+    if (weak) {
+      banner.textContent = recorder.recording
+        ? 'Глушение GPS: маршрут пишется приблизительно, скорость и разгоны не замеряются. Запись продолжается.'
+        : 'Слабый GPS: скорость не показывается. Начинайте запись — маршрут запишется приблизительно, замеры включатся сами, когда сигнал вернётся.';
+    }
     if (s.gps === 'ok' && recorder.gpsFresh()) {
       const acc = recorder.lastFix.accuracy;
-      setPill('gps', acc <= 10 ? 'ok' : acc <= 25 ? 'mid' : 'bad', `GPS ±${Math.round(acc)} м`);
+      setPill('gps', acc <= 10 ? 'ok' : 'mid', `GPS ${weak ? 'слабый ' : ''}±${Math.round(acc)} м`);
     } else if (s.gps === 'denied') setPill('gps', 'bad', 'GPS запрещён');
     else if (s.gps === 'unsupported') setPill('gps', 'bad', 'GPS нет');
     else if (s.gps === 'off') setPill('gps', '', 'GPS');
@@ -90,14 +100,20 @@ export function mountRecord(root, { navigate }) {
       { on: 'Экран вкл', lost: 'Экран: повтор…', unsupported: 'Wake Lock нет', off: 'Экран' }[w]);
   }
 
+  // A fix worse than the algorithm accepts (Wi-Fi/cell position under GPS
+  // jamming): its speed is position noise, so none is shown.
+  const weakGps = () => recorder.gpsFresh() && recorder.lastFix.accuracy > DEFAULTS.maxAccuracy;
+
   function updateSpeed() {
-    // No fresh fix: a small "нет GPS" instead of a number.
-    const fresh = recorder.gpsFresh();
-    const v = fresh ? fmtSpeed(recorder.lastFix.speed) : 'нет GPS';
+    // No usable fix: a small "нет GPS" / "слабый GPS" instead of a number.
+    const weak = weakGps();
+    const fresh = recorder.gpsFresh() && !weak;
+    const v = fresh ? fmtSpeed(recorder.lastFix.speed) : weak ? 'слабый GPS' : 'нет GPS';
     for (const node of [$('[data-speed]'), overlay?.speed]) {
       if (!node) continue;
       node.textContent = v;
       node.classList.toggle('stale', !fresh);
+      node.classList.toggle('weak', weak);
     }
     $('[data-unit]').textContent = speedUnit();
     const full = getSettings().units === 'mph' ? 150 : 240;

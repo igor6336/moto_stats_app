@@ -2,7 +2,7 @@
 // Yandex is unavailable (no key, network, daily limit); an SVG polyline when
 // offline, so a ride route is always visible.
 // Both engines sit behind the same small adapter:
-//   addLine(coords, color), addMarker(lat, lon, html, onClick) -> {update, remove},
+//   addLine(coords, color, dashed), addMarker(lat, lon, html, onClick) -> {update, remove},
 //   fit(points), setView(lat, lon, zoom), destroy()
 // Coordinates are [lat, lon] everywhere in the app; Yandex wants [lon, lat].
 import { YANDEX_MAPS_KEY } from './config.js';
@@ -18,6 +18,9 @@ const FINISH_HTML = '<div class="rmark finish"><i></i><span>Финиш</span></d
 
 export const ZONE_COLORS = ['#4aa3ff', '#3fd28b', '#c6e04a', '#ffc93d', '#ff8a3d', '#ff4d4d', '#e04ad6', '#a46bff'];
 export const zoneColor = (i) => ZONE_COLORS[i % ZONE_COLORS.length];
+// Approximate part of a route (coarse fixes under GPS jamming): grey dashes.
+export const APPROX_COLOR = '#9aa3b5';
+const runColor = (r) => (r.approx ? APPROX_COLOR : zoneColor(r.zone));
 
 function withTimeout(promise, what) {
   return Promise.race([
@@ -78,10 +81,10 @@ function yandexAdapter(ym, container, center, zoom) {
   map.addChild(new YMapDefaultFeaturesLayer());
   return {
     kind: 'yandex',
-    addLine(coords, color) {
+    addLine(coords, color, dashed) {
       map.addChild(new YMapFeature({
         geometry: { type: 'LineString', coordinates: coords.map(ll) },
-        style: { stroke: [{ color, width: 4 }] },
+        style: { stroke: [{ color, width: 4, ...(dashed ? { dash: [6, 6] } : {}) }] },
       }));
     },
     addMarker(lat, lon, html, onClick) {
@@ -124,7 +127,7 @@ function leafletAdapter(L, container, center, zoom) {
   const icon = (html) => L.divIcon({ className: '', html: `<div class="ymark">${html}</div>`, iconSize: [0, 0] });
   return {
     kind: 'osm',
-    addLine(coords, color) { L.polyline(coords, { color, weight: 4, opacity: 0.95 }).addTo(map); },
+    addLine(coords, color, dashed) { L.polyline(coords, { color, weight: 4, opacity: 0.95, dashArray: dashed ? '6 8' : null }).addTo(map); },
     addMarker(lat, lon, html, onClick) {
       const m = L.marker([lat, lon], { icon: icon(html) }).addTo(map);
       if (onClick) m.on('click', onClick);
@@ -166,7 +169,7 @@ export async function drawRoute(container, runs) {
   }
   try {
     const map = await createMap(container, { center: all[0], zoom: 13 });
-    for (const r of runs) map.addLine(r.coords, zoneColor(r.zone));
+    for (const r of runs) map.addLine(r.coords, runColor(r), r.approx);
     map.addMarker(all[0][0], all[0][1], START_HTML);
     map.addMarker(all.at(-1)[0], all.at(-1)[1], FINISH_HTML);
     map.fit(all, 20);
@@ -186,7 +189,7 @@ function drawSvg(container, runs, all) {
   const scale = Math.min((w - 2 * pad) / (maxX - minX || 1e-9), (hgt - 2 * pad) / (maxY - minY || 1e-9));
   const ox = (w - (maxX - minX) * scale) / 2, oy = (hgt - (maxY - minY) * scale) / 2;
   const pt = (p) => `${((p[1] * k - minX) * scale + ox).toFixed(1)},${((-p[0] - minY) * scale + oy).toFixed(1)}`;
-  const lines = runs.map((r) => `<polyline points="${r.coords.map(pt).join(' ')}" stroke="${zoneColor(r.zone)}"/>`).join('');
+  const lines = runs.map((r) => `<polyline points="${r.coords.map(pt).join(' ')}" stroke="${runColor(r)}"${r.approx ? ' stroke-dasharray="12 12"' : ''}/>`).join('');
   const dot = (p, color) => { const [x, y] = pt(p).split(','); return `<circle cx="${x}" cy="${y}" r="11" fill="${color}" stroke="#fff" stroke-width="4"/>`; };
   container.innerHTML = `<svg class="route-svg" viewBox="0 0 ${w} ${hgt}" preserveAspectRatio="xMidYMid meet">
     <g fill="none" stroke-width="5" stroke-linejoin="round" stroke-linecap="round">${lines}</g>
