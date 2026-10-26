@@ -87,4 +87,7 @@ test('riderStats: totals, bests and period filter', async () => {
   assert.equal(all.a0_200, 9.1);
   assert.equal(all.a100_200, null);
   assert.equal(riderStats(rs, 'month', NOW).rides, 2);
+  assert.equal(riderStats(rs, 'day', NOW).rides, 0);
+  assert.equal(all.leanRight, 0);
+  assert.equal(riderStats([{ ...rs[0], lean_left_deg: 38, wheelie_deg: 52 }]).leanLeft, 38);
 });

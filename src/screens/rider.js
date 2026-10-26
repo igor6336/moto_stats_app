@@ -16,17 +16,19 @@ const sec = (v) => (v ? `${v.toFixed(2)} с` : '—');
 function statsGrid(s) {
   const u = speedUnit();
   const cell = (label, value) => `<div class="stat"><div class="label">${label}</div><div class="value">${value}</div></div>`;
+  const deg = (v) => (v ? `${Math.round(v)}°` : '—');
+  // Same metrics as the leaderboard.
   return `<div class="grid stats">
-    ${cell('Поездок', s.rides)}
-    ${cell('Пробег', fmtDistance(s.distance))}
-    ${cell('В седле', fmtDuration(s.moving))}
     ${cell('Макс.', s.maxSpeed ? `${fmtSpeed(s.maxSpeed)}<small> ${u}</small>` : '—')}
-    ${cell('Длиннейшая', s.longest ? fmtDistance(s.longest) : '—')}
     ${cell('Средняя', s.bestAvg ? `${fmtSpeed(s.bestAvg)}<small> ${u}</small>` : '—')}
+    ${cell('Стойка', deg(s.wheelie))}
     ${cell('0–100', sec(s.a0_100))}
     ${cell('100–200', sec(s.a100_200))}
     ${cell('0–200', sec(s.a0_200))}
-  </div>`;
+    ${cell('Наклон влево', deg(s.leanLeft))}
+    ${cell('Наклон вправо', deg(s.leanRight))}
+  </div>
+  ${s.leanLeft || s.leanRight || s.wheelie ? '' : '<p class="hint">Наклон и стойка появятся после настройки алгоритма.</p>'}`;
 }
 
 export function mountRider(root, { params, navigate }) {
@@ -59,9 +61,9 @@ export function mountRider(root, { params, navigate }) {
         <div class="row route-row" data-route></div>
         <div class="hint route-hint">${escapeHtml(routeSubtitle(loc))}</div>` : ''}
       <div class="seg" data-periods>
-        <button data-period="all" class="${period === 'all' ? 'on' : ''}">Всё время</button>
+        <button data-period="day" class="${period === 'day' ? 'on' : ''}">День</button>
         <button data-period="month" class="${period === 'month' ? 'on' : ''}">Месяц</button>
-        <button data-period="week" class="${period === 'week' ? 'on' : ''}">Неделя</button>
+        <button data-period="all" class="${period === 'all' ? 'on' : ''}">Всё время</button>
       </div>
       ${statsGrid(riderStats(rides, period))}
       <h2>Последние поездки</h2>

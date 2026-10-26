@@ -62,6 +62,7 @@ export function riderStats(rides, period = 'all', now = new Date()) {
   const s = {
     rides: 0, distance: 0, moving: 0, maxSpeed: 0, longest: 0, bestAvg: 0,
     a0_100: null, a100_200: null, a0_200: null,
+    leanRight: 0, leanLeft: 0, wheelie: 0, // degrees, filled once stage 3 computes them
   };
   const minOf = (a, b) => (b > 0 && (a === null || b < a) ? b : a);
   for (const r of rides) {
@@ -75,6 +76,9 @@ export function riderStats(rides, period = 'all', now = new Date()) {
     s.a0_100 = minOf(s.a0_100, r.accel_0_100_s);
     s.a100_200 = minOf(s.a100_200, r.accel_100_200_s);
     s.a0_200 = minOf(s.a0_200, r.accel_0_200_s);
+    s.leanRight = Math.max(s.leanRight, r.lean_right_deg || 0);
+    s.leanLeft = Math.max(s.leanLeft, r.lean_left_deg || 0);
+    s.wheelie = Math.max(s.wheelie, r.wheelie_deg || 0);
   }
   return s;
 }
