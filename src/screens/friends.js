@@ -1,22 +1,16 @@
 import { socialConfigured, getMe, humanError } from '../social/client.js';
 import { listFriends, addFriend, acceptFriend, removeFriend } from '../social/friends.js';
-import { watchLocations, setSharing, sharingEnabled, ONLINE_MS } from '../social/location.js';
+import { watchLocations, setSharing, sharingEnabled, ONLINE_MS, lastSeen } from '../social/location.js';
+
+export { lastSeen };
 import { recorder } from '../recorder.js';
 import { createMap } from '../map.js';
 import { avatarHtml } from '../social/avatar.js';
 import { copyCode } from './account.js';
 import { escapeHtml, fmtSpeed, speedUnit } from '../format.js';
-import { h, toast } from '../ui.js';
+import { h, toast, actionSheet } from '../ui.js';
+import { routeActions, routeSubtitle } from '../social/route.js';
 
-export function lastSeen(loc) {
-  if (!loc) return 'не делится местоположением';
-  const ago = Date.now() - new Date(loc.updated_at).getTime();
-  if (ago < ONLINE_MS) return loc.riding ? `в пути · ${fmtSpeed(loc.speed)} ${speedUnit()}` : 'в сети';
-  const min = Math.round(ago / 60000);
-  if (min < 60) return `был ${min} мин назад`;
-  const hr = Math.round(min / 60);
-  return hr < 48 ? `был ${hr} ч назад` : `был ${new Date(loc.updated_at).toLocaleDateString('ru-RU')}`;
-}
 
 export function mountFriends(root, { navigate }) {
   const el = h('<section class="screen friends"><h1>Друзья</h1><div data-body></div></section>');
@@ -155,7 +149,14 @@ export function mountFriends(root, { navigate }) {
       const html = `<div class="fmark ${online ? 'on' : ''} ${riding ? 'riding' : ''} ${loc.self ? 'me' : ''} ${ghost ? 'ghost' : ''}">
           ${avatarHtml(p)}<span>${escapeHtml(label)}${speed ? ' · ' : ''}${speed}</span></div>`;
       const e = markers.get(loc.user_id);
-      const open = () => navigate(loc.self ? '#/account' : `#/rider/${loc.user_id}`);
+      const open = () => {
+        if (loc.self) { navigate('#/account'); return; }
+        const cur = locations.get(loc.user_id) || loc;
+        actionSheet(p.name, routeSubtitle(cur), [
+          ...routeActions(cur),
+          { label: 'Профиль', onClick: () => navigate(`#/rider/${loc.user_id}`) },
+        ]);
+      };
       if (!e) markers.set(loc.user_id, { m: map.addMarker(loc.lat, loc.lon, html, open), lat: loc.lat, lon: loc.lon, html });
       else if (e.lat !== loc.lat || e.lon !== loc.lon || e.html !== html) {
         e.m.update(loc.lat, loc.lon, e.html !== html ? html : undefined);

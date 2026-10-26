@@ -4,9 +4,10 @@ import { ONLINE_MS } from '../social/location.js';
 import { riderStats } from '../algo/leaderboard.js';
 import { createMap } from '../map.js';
 import { avatarHtml } from '../social/avatar.js';
-import { lastSeen } from './friends.js';
+import { lastSeen } from '../social/location.js';
 import { escapeHtml, fmtSpeed, speedUnit, fmtDistance, fmtDuration, fmtDate } from '../format.js';
 import { h, toast } from '../ui.js';
+import { routeActions, routeSubtitle } from '../social/route.js';
 
 const RECENT = 10;
 
@@ -54,7 +55,9 @@ export function mountRider(root, { params, navigate }) {
           <div class="pc-login ${online ? 'online' : ''}">${escapeHtml(isFriend ? lastSeen(loc) : 'не в друзьях')}</div>
         </div>
       </div>
-      ${isFriend && loc ? '<div class="map rider-map" data-map></div>' : ''}
+      ${isFriend && loc ? `<div class="map rider-map" data-map></div>
+        <div class="row route-row" data-route></div>
+        <div class="hint route-hint">${escapeHtml(routeSubtitle(loc))}</div>` : ''}
       <div class="seg" data-periods>
         <button data-period="all" class="${period === 'all' ? 'on' : ''}">Всё время</button>
         <button data-period="month" class="${period === 'month' ? 'on' : ''}">Месяц</button>
@@ -79,6 +82,15 @@ export function mountRider(root, { params, navigate }) {
       ${friendship ? `<div class="actions"><button class="btn danger ghost" data-remove>${isFriend ? 'Удалить из друзей' : 'Отменить запрос'}</button></div>` : ''}`;
 
     el.querySelector('[data-back]').addEventListener('click', () => history.back());
+    const routeBox = el.querySelector('[data-route]');
+    if (routeBox) {
+      for (const a of routeActions(loc)) {
+        const b = h(`<button class="btn ${a.primary ? 'primary' : ''}"></button>`);
+        b.textContent = a.short;
+        b.addEventListener('click', a.onClick);
+        routeBox.append(b);
+      }
+    }
     el.querySelectorAll('[data-period]').forEach((b) => b.addEventListener('click', () => {
       period = b.dataset.period;
       map?.destroy();

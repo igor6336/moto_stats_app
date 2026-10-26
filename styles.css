@@ -319,3 +319,17 @@ form .btn + .btn { margin-top: 10px; }
 .screen.rider .stat .value small { font-size: 12px; color: var(--muted); font-weight: 600; }
 .screen.rider .stat { padding: 10px; }
 .screen.rider .stat .label { font-size: 12px; }
+
+.sheet-backdrop { position: fixed; inset: 0; z-index: 150; background: rgba(0, 0, 0, .55); display: flex; align-items: flex-end; }
+.sheet {
+  width: 100%; background: var(--panel); border-top: 1px solid var(--line); border-radius: 20px 20px 0 0;
+  padding: 18px 16px calc(env(safe-area-inset-bottom) + 16px); display: flex; flex-direction: column; gap: 10px;
+  animation: sheet-up .18s ease-out;
+}
+@keyframes sheet-up { from { transform: translateY(40px); opacity: 0; } }
+.sheet-title { font-size: 20px; font-weight: 750; }
+.sheet-sub { color: var(--muted); font-size: 14px; margin-top: -6px; }
+.sheet-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
+.route-row { margin-top: -4px; }
+.route-row .btn { min-height: 52px; font-size: 16px; }
+.route-hint { margin: 6px 0 14px; font-size: 13px; }

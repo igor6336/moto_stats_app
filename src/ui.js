@@ -60,3 +60,27 @@ export function exportButton(btn, label, prepare) {
     }
   });
 }
+
+// Bottom sheet with large buttons. actions: [{ label, onClick, primary }].
+export function actionSheet(title, subtitle, actions) {
+  const root = document.getElementById('overlay-root');
+  const sheet = h(`<div class="sheet-backdrop">
+    <div class="sheet">
+      <div class="sheet-title"></div>
+      <div class="sheet-sub"></div>
+      <div class="sheet-actions"></div>
+      <button class="btn ghost" data-cancel>Отмена</button>
+    </div></div>`);
+  sheet.querySelector('.sheet-title').textContent = title;
+  sheet.querySelector('.sheet-sub').textContent = subtitle || '';
+  const close = () => sheet.remove();
+  for (const a of actions) {
+    const b = h(`<button class="btn ${a.primary ? 'primary' : ''}"></button>`);
+    b.textContent = a.label;
+    b.addEventListener('click', () => { close(); a.onClick(); });
+    sheet.querySelector('.sheet-actions').append(b);
+  }
+  sheet.querySelector('[data-cancel]').addEventListener('click', close);
+  sheet.addEventListener('click', (e) => { if (e.target === sheet) close(); });
+  root.append(sheet);
+}

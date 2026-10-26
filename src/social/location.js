@@ -4,6 +4,7 @@
 import { getClient, getMe, onMeChange } from './client.js';
 import { recorder } from '../recorder.js';
 import { getSettings, saveSettings } from '../settings.js';
+import { fmtSpeed, speedUnit } from '../format.js';
 
 // While riding friends watch the speed, so updates are frequent; otherwise
 // a slow rate keeps the free Supabase realtime quota for the rides.
@@ -86,4 +87,14 @@ export async function watchLocations(fn) {
     })
     .subscribe();
   return () => sb.removeChannel(channel);
+}
+
+export function lastSeen(loc) {
+  if (!loc) return 'не делится местоположением';
+  const ago = Date.now() - new Date(loc.updated_at).getTime();
+  if (ago < ONLINE_MS) return loc.riding ? `в пути · ${fmtSpeed(loc.speed)} ${speedUnit()}` : 'в сети';
+  const min = Math.round(ago / 60000);
+  if (min < 60) return `был ${min} мин назад`;
+  const hr = Math.round(min / 60);
+  return hr < 48 ? `был ${hr} ч назад` : `был ${new Date(loc.updated_at).toLocaleDateString('ru-RU')}`;
 }
