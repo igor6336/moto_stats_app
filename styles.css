@@ -554,3 +554,27 @@ form .btn + .btn { margin-top: 10px; }
   display: flex; align-items: center; justify-content: center; padding: 16px; animation: fade .2s ease-out;
 }
 .photo-view img { width: min(92vw, 92vh, 720px); aspect-ratio: 1; object-fit: cover; border-radius: 24px; animation: zoom-in .3s var(--ease); box-shadow: 0 20px 60px rgba(0, 0, 0, .6); }
+
+/* History: multi-select */
+.title-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.title-row .btn.small { min-height: 40px; color: var(--accent); border-color: transparent; }
+.ride-item .check {
+  width: 28px; height: 28px; flex: none; border-radius: 50%; display: grid; place-items: center;
+  border: 2px solid var(--line-2); color: #1a0a00; transition: background .2s, border-color .2s, transform .2s var(--ease);
+  animation: rise .25s var(--ease) both;
+}
+.ride-item .check .icon { width: 16px; height: 16px; stroke-width: 3; }
+.ride-item.selected { border-color: rgba(255, 106, 19, .55); background: linear-gradient(90deg, rgba(255, 106, 19, .10), var(--surface) 70%); }
+.ride-item.selected .check { background: var(--accent-grad); border-color: transparent; transform: scale(1.05); }
+.ride-item.locked { opacity: .45; }
+.screen.history.selecting { padding-bottom: 80px; }
+.select-bar {
+  position: fixed; left: 0; right: 0; z-index: 30;
+  bottom: calc(var(--tab-h) + env(safe-area-inset-bottom));
+  display: flex; gap: 10px; padding: 10px 16px;
+  background: rgba(10, 12, 16, .9); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid var(--line); animation: bar-up .3s var(--ease);
+}
+.select-bar .btn { min-height: 54px; font-size: 15px; }
+.select-bar .btn.ghost { flex: 0 0 38%; }
+@keyframes bar-up { from { transform: translateY(100%); opacity: 0; } }
