@@ -22,8 +22,8 @@ export function openRoute(kind, lat, lon) {
 
 export function routeActions(loc) {
   return [
-    { label: 'Маршрут в Яндекс Картах', short: 'Маршрут · Карты', primary: true, onClick: () => openRoute('maps', loc.lat, loc.lon) },
-    { label: 'Маршрут в Яндекс Навигаторе', short: 'Навигатор', onClick: () => openRoute('navi', loc.lat, loc.lon) },
+    { label: 'Маршрут в Яндекс Картах', primary: true, onClick: () => openRoute('maps', loc.lat, loc.lon) },
+    { label: 'Маршрут в Яндекс Навигаторе', onClick: () => openRoute('navi', loc.lat, loc.lon) },
   ];
 }
 

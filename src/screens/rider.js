@@ -73,12 +73,12 @@ export function mountRider(root, { params, navigate }) {
     el.querySelector('[data-back]').addEventListener('click', () => history.back());
     const routeBox = el.querySelector('[data-route]');
     if (routeBox) {
-      for (const a of routeActions(loc)) {
-        const b = h(`<button class="btn ${a.primary ? 'primary' : ''}"></button>`);
-        b.textContent = a.short;
-        b.addEventListener('click', a.onClick);
-        routeBox.append(b);
-      }
+      // Only Yandex Maps here; the map marker sheet also offers the navigator.
+      const maps = routeActions(loc)[0];
+      const b = h('<button class="btn primary"></button>');
+      b.textContent = maps.label;
+      b.addEventListener('click', maps.onClick);
+      routeBox.append(b);
     }
     el.querySelectorAll('[data-period]').forEach((b) => b.addEventListener('click', () => {
       period = b.dataset.period;
