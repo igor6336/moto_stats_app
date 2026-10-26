@@ -133,13 +133,19 @@ class Recorder extends EventTarget {
     const c = p.coords;
     const speed = Number.isFinite(c.speed) && c.speed >= 0 ? c.speed : null;
     const heading = Number.isFinite(c.heading) && c.heading >= 0 ? c.heading : null;
-    // Display only: when Doppler speed is missing (iOS reports -1 at low
-    // speed), estimate it from the previous fix. Raw rows keep null.
+    // Display only: when Doppler speed is missing (iOS reports -1 when it
+    // cannot measure it, e.g. standing still), estimate it from the previous
+    // fix. A shift smaller than the fix accuracy is jitter, not movement,
+    // so it shows 0. Raw rows keep null.
     let shown = speed;
     const prev = this.lastFix;
-    if (shown === null && prev) {
-      const dt = (p.timestamp - prev.ts) / 1000;
-      if (dt > 0.2 && dt < 5) shown = haversine(prev.lat, prev.lon, c.latitude, c.longitude) / dt;
+    if (shown === null) {
+      shown = 0;
+      const dt = prev ? (p.timestamp - prev.ts) / 1000 : 0;
+      if (dt > 0.2 && dt < 5) {
+        const d = haversine(prev.lat, prev.lon, c.latitude, c.longitude);
+        if (d > Math.max(c.accuracy, prev.accuracy)) shown = d / dt;
+      }
     }
     this.status.gps = 'ok';
     this.status.gpsError = null;

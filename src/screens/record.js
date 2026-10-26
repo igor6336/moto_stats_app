@@ -72,15 +72,15 @@ export function mountRecord(root, { navigate }) {
   }
 
   function updateSpeed() {
+    // No fresh fix: a small "нет GPS" instead of a number.
     const fresh = recorder.gpsFresh();
-    const v = fresh && recorder.lastFix.speed !== null ? fmtSpeed(recorder.lastFix.speed) : '—';
-    $('[data-speed]').textContent = v;
-    $('[data-speed]').classList.toggle('stale', !fresh);
-    $('[data-unit]').textContent = speedUnit();
-    if (overlay?.speed) {
-      overlay.speed.textContent = v;
-      overlay.speed.classList.toggle('stale', !fresh);
+    const v = fresh ? fmtSpeed(recorder.lastFix.speed) : 'нет GPS';
+    for (const node of [$('[data-speed]'), overlay?.speed]) {
+      if (!node) continue;
+      node.textContent = v;
+      node.classList.toggle('stale', !fresh);
     }
+    $('[data-unit]').textContent = speedUnit();
   }
 
   function updateStats() {

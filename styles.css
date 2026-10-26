@@ -107,6 +107,7 @@ h2 { font-size: 15px; text-transform: uppercase; letter-spacing: .06em; color: v
   font-size: min(34vw, 160px); font-weight: 800; line-height: 1;
   font-variant-numeric: tabular-nums; letter-spacing: -.04em;
 }
+.speed.stale, .bm-speed.stale { font-size: 44px; font-weight: 700; letter-spacing: 0; padding: 58px 0; }
 .speed.stale { color: var(--muted); }
 .speed-unit { color: var(--muted); font-size: 18px; font-weight: 600; }
 .rec-time { text-align: center; min-height: 24px; margin: 4px 0; font-weight: 700; color: var(--bad); letter-spacing: .05em; }
@@ -135,7 +136,7 @@ h2 { font-size: 15px; text-transform: uppercase; letter-spacing: .06em; color: v
 .overlay.black { background: #000; }
 .overlay.lock { background: rgba(0, 0, 0, .08); justify-content: flex-end; padding-bottom: calc(env(safe-area-inset-bottom) + 24px); }
 .bm-speed { font-size: min(48vw, 260px); font-weight: 800; color: #9a9a9a; line-height: 1; font-variant-numeric: tabular-nums; letter-spacing: -.04em; }
-.bm-speed.stale { color: #3a3a3a; }
+.bm-speed.stale { color: #3a3a3a; padding: 100px 0; }
 .bm-unit { color: #4a4a4a; font-size: 20px; font-weight: 600; }
 .bm-status { position: absolute; top: calc(env(safe-area-inset-top) + 16px); color: #5a1d1d; font-weight: 700; font-size: 15px; }
 .hold-hint {
