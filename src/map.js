@@ -13,6 +13,9 @@ const LOAD_TIMEOUT_MS = 8000;
 let leafletPromise = null;
 let yandexPromise = null;
 
+const START_HTML = '<div class="rmark start"><i></i><span>Старт</span></div>';
+const FINISH_HTML = '<div class="rmark finish"><i></i><span>Финиш</span></div>';
+
 export const ZONE_COLORS = ['#4aa3ff', '#3fd28b', '#c6e04a', '#ffc93d', '#ff8a3d', '#ff4d4d', '#e04ad6', '#a46bff'];
 export const zoneColor = (i) => ZONE_COLORS[i % ZONE_COLORS.length];
 
@@ -164,6 +167,8 @@ export async function drawRoute(container, runs) {
   try {
     const map = await createMap(container, { center: all[0], zoom: 13 });
     for (const r of runs) map.addLine(r.coords, zoneColor(r.zone));
+    map.addMarker(all[0][0], all[0][1], START_HTML);
+    map.addMarker(all.at(-1)[0], all.at(-1)[1], FINISH_HTML);
     map.fit(all, 20);
     return () => map.destroy();
   } catch {
@@ -182,7 +187,9 @@ function drawSvg(container, runs, all) {
   const ox = (w - (maxX - minX) * scale) / 2, oy = (hgt - (maxY - minY) * scale) / 2;
   const pt = (p) => `${((p[1] * k - minX) * scale + ox).toFixed(1)},${((-p[0] - minY) * scale + oy).toFixed(1)}`;
   const lines = runs.map((r) => `<polyline points="${r.coords.map(pt).join(' ')}" stroke="${zoneColor(r.zone)}"/>`).join('');
+  const dot = (p, color) => { const [x, y] = pt(p).split(','); return `<circle cx="${x}" cy="${y}" r="11" fill="${color}" stroke="#fff" stroke-width="4"/>`; };
   container.innerHTML = `<svg class="route-svg" viewBox="0 0 ${w} ${hgt}" preserveAspectRatio="xMidYMid meet">
-    <g fill="none" stroke-width="5" stroke-linejoin="round" stroke-linecap="round">${lines}</g></svg>
+    <g fill="none" stroke-width="5" stroke-linejoin="round" stroke-linecap="round">${lines}</g>
+    ${dot(all[0], '#3fd28b')}${dot(all.at(-1), '#ff4d4d')}</svg>
     <div class="map-note">Карта недоступна без сети</div>`;
 }

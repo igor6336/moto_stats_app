@@ -288,7 +288,17 @@ form .btn + .btn { margin-top: 10px; }
 .btn.small { width: auto; min-height: 44px; padding: 6px 14px; font-size: 15px; }
 
 .friends-map { height: 300px; }
-.ymark { position: absolute; transform: translate(-28px, -22px); }
+.ymark { position: absolute; }
+.ymark > .fmark { transform: translate(-28px, -22px); }
+/* Route start/finish: the dot sits on the point, the label below it. */
+.rmark { position: absolute; transform: translate(-50%, -9px); display: flex; flex-direction: column; align-items: center; pointer-events: none; }
+.rmark i { width: 18px; height: 18px; border-radius: 50%; border: 3px solid #fff; box-sizing: border-box; box-shadow: 0 1px 4px rgba(0, 0, 0, .6); }
+.rmark.start i { background: #3fd28b; }
+.rmark.finish i { background: #ff4d4d; }
+.rmark span {
+  margin-top: 2px; padding: 0 5px; border-radius: 5px; background: rgba(11, 13, 16, .85);
+  color: #fff; font-size: 11px; font-weight: 700; white-space: nowrap;
+}
 .fmark { display: flex; flex-direction: column; align-items: center; width: 56px; }
 .fmark .avatar { width: 44px; height: 44px; border-radius: 50% !important; box-sizing: border-box; border: 3px solid #555; box-shadow: 0 2px 8px rgba(0, 0, 0, .5); }
 .fmark.on .avatar { border-color: var(--ok); }
