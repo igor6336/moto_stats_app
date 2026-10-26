@@ -33,7 +33,7 @@ console.log(`Distance        ${(s.distance / 1000).toFixed(3)} km`);
 console.log(`Duration        ${mmss(s.duration)}  moving ${mmss(s.movingTime)}  stopped ${mmss(s.stoppedTime)}`);
 console.log(`Max speed       ${kmh(s.maxSpeed)} km/h (raw peak ${kmh(s.maxSpeedRaw)})`);
 console.log(`Avg moving      ${kmh(s.avgMovingSpeed)} km/h`);
-console.log(`GPS gaps        ${s.gaps} (${mmss(s.gapTime)})`);
+console.log(`GPS gaps        ${s.gaps} (${mmss(s.gapTime)}), no usable fix ${mmss(s.untrackedTime)}`);
 console.log('');
 console.log('Zones (km/h)    time     distance');
 for (const z of s.zones) {

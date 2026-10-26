@@ -48,6 +48,9 @@ export function mountRide(root, { params, navigate }) {
         <button class="btn ghost back" data-back>‹ История</button>
         <h1>${fmtDate(ride.startedAt)}</h1>
         ${ride.status === 'interrupted' ? '<div class="badge warn">Запись прервана, сохранено до последнего сброса</div>' : ''}
+        ${s.duration > 60 && (s.untrackedTime + s.gapTime) / s.duration > 0.2 ? `<div class="banner warn">
+          ${fmtDuration(s.untrackedTime + s.gapTime)} из ${fmtDuration(s.duration)} без точного GPS (помещение, туннели,
+          глушение в центре Москвы). Дистанция и время в движении за этот отрезок не посчитаны.</div>` : ''}
       </div>
       <div class="map" data-map></div>
       <div class="grid stats">
@@ -71,6 +74,7 @@ export function mountRide(root, { params, navigate }) {
         <div><span>GPS частота</span><b>${q.gps ? `${q.gps.hz.toFixed(2)} Гц, пауз >2 с: ${q.gps.gaps}` : '—'}</b></div>
         <div><span>Датчики движения</span><b>${q.motion ? `${q.motion.hz.toFixed(0)} Гц, пауз: ${q.motion.gaps}, макс. ${q.motion.maxDtMs} мс` : '—'}</b></div>
         <div><span>Потери сигнала GPS</span><b>${s.gaps} (${fmtDuration(s.gapTime)})</b></div>
+        <div><span>Без точного GPS</span><b>${fmtDuration(s.untrackedTime + s.gapTime)}</b></div>
         <div><span>Пик скорости без сглаживания</span><b>${fmtSpeed(s.maxSpeedRaw)} ${u}</b></div>
         <div><span>Калибровка</span><b>${cal}</b></div>
         <div><span>Записей датчиков</span><b>${ride.counts?.motion ?? '—'}</b></div>

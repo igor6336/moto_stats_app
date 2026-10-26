@@ -182,3 +182,11 @@ test('viewForPoints fits a box and centres it', async () => {
   assert.ok(Math.abs(v.zoom - Math.log2(400 / 256 / (0.2 / 360))) < 0.6);
   assert.equal(viewForPoints([[55.7, 37.5]], 400, 300).zoom, 17);
 });
+
+test('time without a usable fix is reported', () => {
+  const rows = track(new Array(61).fill(15));
+  for (let i = 0; i < 30; i++) rows[i][4] = 800; // first half: coarse Wi-Fi/cell fixes
+  const s = computeSummary(rows, { durationS: 60 });
+  assert.ok(Math.abs(s.untrackedTime - 30) < 1.01, `${s.untrackedTime}`);
+  assert.equal(computeSummary([], { durationS: 50 }).untrackedTime, 50);
+});

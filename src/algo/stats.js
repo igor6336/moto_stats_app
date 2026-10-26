@@ -93,12 +93,16 @@ export function computeSummary(rows, opts = {}) {
     points: tr.n,
     distance: 0, duration: 0, trackedTime: 0, movingTime: 0, stoppedTime: 0,
     gapTime: 0, gaps: 0,
+    untrackedTime: 0, // s of the ride with no usable fix (poor accuracy, GPS jamming)
     maxSpeed: 0, maxSpeedRaw: 0, maxSpeedT: null,
     avgMovingSpeed: 0, avgSpeed: 0,
     zones, bbox: null,
     accel: { '0-100': null, '100-200': null, '0-200': null }, // s, best per ride
   };
-  if (tr.n === 0) return s;
+  if (tr.n === 0) {
+    if (Number.isFinite(o.durationS)) s.duration = s.untrackedTime = o.durationS;
+    return s;
+  }
 
   let movingDistNoGap = 0;
   for (let i = 1; i < tr.n; i++) {
@@ -128,6 +132,7 @@ export function computeSummary(rows, opts = {}) {
   s.duration = Number.isFinite(o.durationS) ? o.durationS : tr.t[tr.n - 1] - tr.t[0];
   s.avgMovingSpeed = s.movingTime > 0 ? movingDistNoGap / s.movingTime : 0;
   s.avgSpeed = s.duration > 0 ? s.distance / s.duration : 0;
+  s.untrackedTime = Math.max(0, s.duration - s.trackedTime - s.gapTime);
   s.accel = bestAccelerations(tr);
   s.bbox = [Math.min(...tr.lat), Math.min(...tr.lon), Math.max(...tr.lat), Math.max(...tr.lon)];
   return s;
