@@ -12,6 +12,7 @@ function fmtValue(kind, v) {
   if (kind === 'speed') return `${fmtSpeed(v)} ${speedUnit()}`;
   if (kind === 'distance') return fmtDistance(v);
   if (kind === 'duration') return fmtDuration(v);
+  if (kind === 'time') return `${v.toFixed(2)} с`;
   return String(v);
 }
 
@@ -38,7 +39,8 @@ export function mountLeaders(root, { navigate }) {
     <div class="chips" data-cats>${CATEGORIES.map((c) => `<button data-cat="${c.id}">${c.label}</button>`).join('')}</div>
     <div class="seg" data-periods>${PERIODS.map((p) => `<button data-period="${p.id}">${p.label}</button>`).join('')}</div>
     <div class="board" data-board><div class="loading">Загрузка…</div></div>
-    <p class="hint">Среди вас и ваших друзей. В зачёт идут поездки от 500 м; «Лучшая средняя» — поездки от 10 км.</p>`;
+    <p class="hint">Среди вас и ваших друзей. В зачёт идут поездки от 500 м; «Лучшая средняя» — поездки от 10 км.
+      Разгоны считаются по GPS (1 раз в секунду), точность около ±0,3–0,6 с. Замеры — только на закрытой площадке.</p>`;
 
   body.querySelectorAll('[data-cat]').forEach((b) => b.addEventListener('click', () => { category = b.dataset.cat; render(); }));
   body.querySelectorAll('[data-period]').forEach((b) => b.addEventListener('click', () => { period = b.dataset.period; render(); }));

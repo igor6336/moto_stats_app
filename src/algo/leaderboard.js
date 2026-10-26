@@ -9,6 +9,10 @@ export const CATEGORIES = [
   { id: 'longest', label: 'Самая длинная поездка', kind: 'distance', per: 'ride', field: 'distance_m' },
   // Short rides make average speed meaningless, so only rides of 10 km+.
   { id: 'avgSpeed', label: 'Лучшая средняя', kind: 'speed', per: 'ride', field: 'avg_moving_ms', minDistance: 10000 },
+  // Acceleration: best (lowest) time of any ride; rides without the run are skipped.
+  { id: 'a0_100', label: '0–100', kind: 'time', per: 'ride', field: 'accel_0_100_s', lower: true },
+  { id: 'a100_200', label: '100–200', kind: 'time', per: 'ride', field: 'accel_100_200_s', lower: true },
+  { id: 'a0_200', label: '0–200', kind: 'time', per: 'ride', field: 'accel_0_200_s', lower: true },
 ];
 
 export const PERIODS = [
@@ -35,14 +39,17 @@ export function computeLeaderboard(rides, categoryId, period, now = new Date()) 
   for (const r of rides) {
     if (new Date(r.started_at).getTime() < from) continue;
     if (cat.minDistance && r.distance_m < cat.minDistance) continue;
+    const x = cat.field ? r[cat.field] : null;
+    if (cat.per === 'ride' && !(x > 0)) continue;
     let e = byUser.get(r.user_id);
     if (!e) byUser.set(r.user_id, (e = { userId: r.user_id, value: 0, rides: 0, best: null }));
     e.rides++;
     if (cat.per === 'count') e.value = e.rides;
-    else if (cat.per === 'sum') e.value += r[cat.field];
-    else if (r[cat.field] > e.value) { e.value = r[cat.field]; e.best = r; }
+    else if (cat.per === 'sum') e.value += x;
+    else if (!e.best || (cat.lower ? x < e.value : x > e.value)) { e.value = x; e.best = r; }
   }
-  const rows = [...byUser.values()].filter((e) => e.value > 0).sort((a, b) => b.value - a.value);
+  const rows = [...byUser.values()].filter((e) => e.value > 0)
+    .sort((a, b) => (cat.lower ? a.value - b.value : b.value - a.value));
   // Equal values share a rank.
   rows.forEach((e, i) => { e.rank = i > 0 && rows[i - 1].value === e.value ? rows[i - 1].rank : i + 1; });
   return rows;

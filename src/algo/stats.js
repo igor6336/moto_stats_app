@@ -2,8 +2,9 @@
 // All outputs are SI: metres, seconds, m/s.
 import { G } from './schema.js';
 import { haversine } from './geo.js';
+import { bestAccelerations } from './accel.js';
 
-export const ALGO_VERSION = 2;
+export const ALGO_VERSION = 3;
 
 export const DEFAULTS = Object.freeze({
   maxAccuracy: 25,    // m: fixes worse than this are dropped
@@ -95,6 +96,7 @@ export function computeSummary(rows, opts = {}) {
     maxSpeed: 0, maxSpeedRaw: 0, maxSpeedT: null,
     avgMovingSpeed: 0, avgSpeed: 0,
     zones, bbox: null,
+    accel: { '0-100': null, '100-200': null, '0-200': null }, // s, best per ride
   };
   if (tr.n === 0) return s;
 
@@ -126,6 +128,7 @@ export function computeSummary(rows, opts = {}) {
   s.duration = Number.isFinite(o.durationS) ? o.durationS : tr.t[tr.n - 1] - tr.t[0];
   s.avgMovingSpeed = s.movingTime > 0 ? movingDistNoGap / s.movingTime : 0;
   s.avgSpeed = s.duration > 0 ? s.distance / s.duration : 0;
+  s.accel = bestAccelerations(tr);
   s.bbox = [Math.min(...tr.lat), Math.min(...tr.lon), Math.max(...tr.lat), Math.max(...tr.lon)];
   return s;
 }

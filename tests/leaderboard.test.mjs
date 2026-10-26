@@ -45,6 +45,18 @@ test('average speed ignores rides shorter than 10 km', () => {
   assert.ok(!r.find((x) => x.userId === 'c'));
 });
 
+test('acceleration: lowest time wins, rides without a run are skipped', () => {
+  const rs = [
+    { ...ride('a', at(2026, 9, 27), 20000, 50), accel_0_100_s: 3.9 },
+    { ...ride('a', at(2026, 9, 27), 20000, 50), accel_0_100_s: 3.4 },
+    { ...ride('b', at(2026, 9, 27), 20000, 50), accel_0_100_s: 3.1 },
+    { ...ride('c', at(2026, 9, 27), 20000, 50), accel_0_100_s: null },
+  ];
+  const r = computeLeaderboard(rs, 'a0_100', 'all', NOW);
+  assert.deepEqual(r.map((x) => [x.userId, x.value]), [['b', 3.1], ['a', 3.4]]);
+  assert.equal(r[1].best.accel_0_100_s, 3.4);
+});
+
 test('empty input gives an empty board', () => {
   assert.deepEqual(computeLeaderboard([], 'distance', 'all', NOW), []);
 });

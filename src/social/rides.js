@@ -1,10 +1,27 @@
 // Uploads ride summaries for leaderboards. Raw data never leaves the phone.
 import { getClient, getMe } from './client.js';
-import { listRides, putRide } from '../storage.js';
+import { listRides, putRide, getGpsData } from '../storage.js';
+import { computeSummary, ALGO_VERSION } from '../algo/stats.js';
+import { getSettings } from '../settings.js';
 
 const MIN_DISTANCE_M = 500; // skips test recordings at home
 
-const signature = (s) => `${s.algoVersion}:${Math.round(s.distance)}:${s.maxSpeed.toFixed(2)}`;
+const signature = (s) => `${s.algoVersion}:${Math.round(s.distance)}:${s.maxSpeed.toFixed(2)}:${JSON.stringify(s.accel || {})}`;
+
+// Rides recorded before an algorithm update (e.g. without acceleration
+// times) get their summary recomputed from the stored GPS track.
+async function freshSummary(ride) {
+  if (ride.summary?.algoVersion === ALGO_VERSION) return ride.summary;
+  const { gps } = await getGpsData(ride.id);
+  ride.summary = computeSummary(gps, {
+    zones: ride.settings?.zones || getSettings().zones,
+    durationS: ride.endedAt ? (ride.endedAt - ride.startedAt) / 1000 : undefined,
+  });
+  await putRide(ride);
+  return ride.summary;
+}
+
+let accelColumns = true; // false if the server schema predates them
 
 let syncing = null;
 
@@ -19,11 +36,12 @@ async function doSync() {
   const sb = await getClient();
   let n = 0;
   for (const ride of await listRides()) {
-    const s = ride.summary;
-    if (ride.status === 'recording' || !s || s.distance < MIN_DISTANCE_M) continue;
+    if (ride.status === 'recording' || !ride.summary) continue;
+    const s = await freshSummary(ride);
+    if (s.distance < MIN_DISTANCE_M) continue;
     const sig = signature(s);
     if (ride.synced === `${me.id}:${sig}`) continue;
-    const { error } = await sb.from('rides').upsert({
+    const row = {
       user_id: me.id,
       local_id: ride.id,
       started_at: new Date(ride.startedAt).toISOString(),
@@ -34,7 +52,20 @@ async function doSync() {
       avg_moving_ms: Math.min(120, s.avgMovingSpeed),
       bike: me.bike || '',
       algo_version: s.algoVersion,
-    }, { onConflict: 'user_id,local_id' });
+    };
+    if (accelColumns) {
+      row.accel_0_100_s = s.accel?.['0-100'] ?? null;
+      row.accel_100_200_s = s.accel?.['100-200'] ?? null;
+      row.accel_0_200_s = s.accel?.['0-200'] ?? null;
+    }
+    let { error } = await sb.from('rides').upsert(row, { onConflict: 'user_id,local_id' });
+    if (error && /accel_/.test(error.message || '')) {
+      // Server not migrated yet: upload without acceleration, retry later.
+      accelColumns = false;
+      delete row.accel_0_100_s; delete row.accel_100_200_s; delete row.accel_0_200_s;
+      ({ error } = await sb.from('rides').upsert(row, { onConflict: 'user_id,local_id' }));
+      if (!error) continue;
+    }
     if (error) { console.warn('ride sync', error); continue; }
     ride.synced = `${me.id}:${sig}`;
     await putRide(ride);
@@ -47,7 +78,7 @@ async function doSync() {
 export async function fetchBoardData() {
   const sb = await getClient();
   const [rides, profiles] = await Promise.all([
-    sb.from('rides').select('user_id, local_id, started_at, distance_m, moving_s, max_speed_ms, avg_moving_ms, bike'),
+    sb.from('rides').select('*'), // '*' keeps working before the accel columns exist
     sb.from('profiles').select('id, name, bike, avatar'),
   ]);
   if (rides.error) throw rides.error;

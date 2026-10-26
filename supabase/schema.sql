@@ -114,6 +114,14 @@ create table if not exists public.rides (
 );
 create index if not exists rides_user_started on public.rides (user_id, started_at);
 
+-- Best acceleration times per ride, seconds (added in app 0.4.0).
+alter table public.rides add column if not exists accel_0_100_s real
+  check (accel_0_100_s is null or accel_0_100_s between 2 and 60);
+alter table public.rides add column if not exists accel_100_200_s real
+  check (accel_100_200_s is null or accel_100_200_s between 2 and 60);
+alter table public.rides add column if not exists accel_0_200_s real
+  check (accel_0_200_s is null or accel_0_200_s between 2 and 60);
+
 -- --------------------------------------------------------------------- RLS
 alter table public.profiles enable row level security;
 alter table public.friendships enable row level security;
