@@ -172,3 +172,13 @@ test('persistent jump re-anchors without counting the teleport', () => {
   assert.ok(s.distance > 300);
   assert.equal(s.gaps, 1);
 });
+
+test('viewForPoints fits a box and centres it', async () => {
+  const { viewForPoints } = await import('../src/algo/geo.js');
+  const v = viewForPoints([[55.70, 37.50], [55.80, 37.70]], 400, 300, 0);
+  assert.ok(Math.abs(v.center[1] - 37.60) < 1e-9);
+  assert.ok(v.center[0] > 55.749 && v.center[0] < 55.751);
+  // 0.2 deg of longitude in 400 px: 400/256/(0.2/360) -> zoom ~11.46
+  assert.ok(Math.abs(v.zoom - Math.log2(400 / 256 / (0.2 / 360))) < 0.6);
+  assert.equal(viewForPoints([[55.7, 37.5]], 400, 300).zoom, 17);
+});

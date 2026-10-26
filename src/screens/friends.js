@@ -2,7 +2,7 @@ import { socialConfigured, getMe, humanError } from '../social/client.js';
 import { listFriends, addFriend, acceptFriend, removeFriend } from '../social/friends.js';
 import { watchLocations, setSharing, sharingEnabled, ONLINE_MS } from '../social/location.js';
 import { recorder } from '../recorder.js';
-import { loadLeaflet, addTiles } from '../map.js';
+import { createMap } from '../map.js';
 import { avatarHtml } from '../social/avatar.js';
 import { copyCode } from './account.js';
 import { escapeHtml, fmtSpeed, speedUnit } from '../format.js';
@@ -23,8 +23,8 @@ export function mountFriends(root, { navigate }) {
   root.appendChild(el);
   const body = el.querySelector('[data-body]');
   let alive = true;
-  let map = null, L = null;
-  const markers = new Map();
+  let map = null;
+  const markers = new Map(); // user_id -> { m: marker handle, lat, lon }
   let locations = new Map();
   let data = { friends: [], incoming: [], outgoing: [] };
   let unwatch = () => {};
@@ -112,7 +112,7 @@ export function mountFriends(root, { navigate }) {
     box.querySelectorAll('.person').forEach((row) => row.addEventListener('click', (e) => {
       if (e.target.closest('button')) return;
       const loc = locations.get(row.dataset.id);
-      if (loc && map) { map.setView([loc.lat, loc.lon], 15); el.scrollTop = 0; document.getElementById('view').scrollTop = 0; }
+      if (loc && map) { map.setView(loc.lat, loc.lon, 15); el.scrollTop = 0; document.getElementById('view').scrollTop = 0; }
     }));
   }
 
@@ -129,22 +129,21 @@ export function mountFriends(root, { navigate }) {
       if (!p) continue;
       seen.add(loc.user_id);
       const online = Date.now() - new Date(loc.updated_at).getTime() < ONLINE_MS;
-      const icon = L.divIcon({
-        className: '',
-        html: `<div class="fmark ${online ? 'on' : ''} ${loc.riding && online ? 'riding' : ''} ${p.id === me.id ? 'me' : ''}">
-          ${avatarHtml(p)}<span>${escapeHtml(p.id === me.id ? 'Вы' : p.name)}</span></div>`,
-        iconSize: [56, 70], iconAnchor: [28, 28],
-      });
-      let m = markers.get(loc.user_id);
-      if (!m) { m = L.marker([loc.lat, loc.lon], { icon }).addTo(map); markers.set(loc.user_id, m); }
-      else { m.setLatLng([loc.lat, loc.lon]); m.setIcon(icon); }
+      const html = `<div class="fmark ${online ? 'on' : ''} ${loc.riding && online ? 'riding' : ''} ${p.id === me.id ? 'me' : ''}">
+          ${avatarHtml(p)}<span>${escapeHtml(p.id === me.id ? 'Вы' : p.name)}</span></div>`;
+      const e = markers.get(loc.user_id);
+      if (!e) markers.set(loc.user_id, { m: map.addMarker(loc.lat, loc.lon, html), lat: loc.lat, lon: loc.lon, html });
+      else if (e.lat !== loc.lat || e.lon !== loc.lon || e.html !== html) {
+        e.m.update(loc.lat, loc.lon, e.html !== html ? html : undefined);
+        Object.assign(e, { lat: loc.lat, lon: loc.lon, html });
+      }
     }
-    for (const [id, m] of markers) if (!seen.has(id)) { m.remove(); markers.delete(id); }
+    for (const [id, e] of markers) if (!seen.has(id)) { e.m.remove(); markers.delete(id); }
     if (!fitted && markers.size) {
       fitted = true;
-      const pts = [...markers.values()].map((m) => m.getLatLng());
-      if (pts.length === 1) map.setView(pts[0], 13);
-      else map.fitBounds(L.latLngBounds(pts), { padding: [40, 40], maxZoom: 14 });
+      const pts = [...markers.values()].map((e) => [e.lat, e.lon]);
+      if (pts.length === 1) map.setView(pts[0][0], pts[0][1], 13);
+      else map.fit(pts, 48);
     }
   }
 
@@ -161,10 +160,9 @@ export function mountFriends(root, { navigate }) {
 
   (async () => {
     try {
-      L = await loadLeaflet();
-      if (!alive) return;
-      map = L.map(body.querySelector('[data-map]'), { zoomControl: false, attributionControl: true }).setView([55.75, 37.62], 10);
-      addTiles(L, map);
+      const m = await createMap(body.querySelector('[data-map]'));
+      if (!alive) { m.destroy(); return; }
+      map = m;
     } catch {
       body.querySelector('[data-map]').innerHTML = '<div class="map-empty">Карта недоступна без сети</div>';
     }
@@ -187,6 +185,6 @@ export function mountFriends(root, { navigate }) {
     alive = false;
     clearInterval(timer);
     unwatch();
-    map?.remove();
+    map?.destroy();
   };
 }

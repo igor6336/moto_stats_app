@@ -1,43 +1,151 @@
-// Route map. Leaflet with OSM tiles when online; an SVG polyline otherwise,
-// so the route is visible without network.
+// Maps. Yandex Maps (JS API v3) first; Leaflet with OpenStreetMap tiles if
+// Yandex is unavailable (no key, network, daily limit); an SVG polyline when
+// offline, so a ride route is always visible.
+// Both engines sit behind the same small adapter:
+//   addLine(coords, color), addMarker(lat, lon, html) -> {update, remove},
+//   fit(points), setView(lat, lon, zoom), destroy()
+// Coordinates are [lat, lon] everywhere in the app; Yandex wants [lon, lat].
+import { YANDEX_MAPS_KEY } from './config.js';
+import { viewForPoints } from './algo/geo.js';
+
 const LEAFLET = 'https://unpkg.com/leaflet@1.9.4/dist/';
+const LOAD_TIMEOUT_MS = 8000;
 let leafletPromise = null;
+let yandexPromise = null;
 
 export const ZONE_COLORS = ['#4aa3ff', '#3fd28b', '#c6e04a', '#ffc93d', '#ff8a3d', '#ff4d4d', '#e04ad6', '#a46bff'];
 export const zoneColor = (i) => ZONE_COLORS[i % ZONE_COLORS.length];
 
+function withTimeout(promise, what) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error(`${what} timeout`)), LOAD_TIMEOUT_MS)),
+  ]);
+}
+
+function loadScript(src, crossOrigin) {
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = src;
+    if (crossOrigin) s.crossOrigin = 'anonymous';
+    s.onload = resolve;
+    s.onerror = () => reject(new Error(`failed to load ${src}`));
+    document.head.append(s);
+  });
+}
+
 export function loadLeaflet() {
   if (window.L) return Promise.resolve(window.L);
-  if (leafletPromise) return leafletPromise;
-  leafletPromise = new Promise((resolve, reject) => {
+  if (!leafletPromise) {
     const css = document.createElement('link');
     css.rel = 'stylesheet';
     css.href = `${LEAFLET}leaflet.css`;
     css.crossOrigin = 'anonymous';
     document.head.append(css);
-    const js = document.createElement('script');
-    js.src = `${LEAFLET}leaflet.js`;
-    js.crossOrigin = 'anonymous';
-    js.onload = () => resolve(window.L);
-    js.onerror = () => { leafletPromise = null; reject(new Error('leaflet not loaded')); };
-    document.head.append(js);
-    setTimeout(() => {
-      if (window.L) return;
-      leafletPromise = null;
-      reject(new Error('leaflet timeout'));
-    }, 8000);
-  });
+    leafletPromise = withTimeout(loadScript(`${LEAFLET}leaflet.js`, true), 'leaflet')
+      .then(() => window.L)
+      .catch((e) => { leafletPromise = null; throw e; });
+  }
   return leafletPromise;
 }
 
-export function addTiles(L, map) {
-  // Leaflet's default prefix (link with a flag) is not required; the
+// Loaded once per app start: the free Yandex plan counts API loads per day.
+function loadYandex() {
+  if (!YANDEX_MAPS_KEY) return Promise.reject(new Error('no yandex key'));
+  if (!yandexPromise) {
+    yandexPromise = withTimeout(
+      loadScript(`https://api-maps.yandex.ru/v3/?apikey=${YANDEX_MAPS_KEY}&lang=ru_RU`)
+        .then(() => window.ymaps3.ready)
+        .then(() => window.ymaps3),
+      'yandex',
+    ).catch((e) => {
+      // Do not retry in this session: a bad key or exhausted limit stays bad.
+      console.warn('yandex maps unavailable, using OpenStreetMap', e);
+      throw e;
+    });
+  }
+  return yandexPromise;
+}
+
+function yandexAdapter(ym, container, center, zoom) {
+  const { YMap, YMapDefaultSchemeLayer, YMapDefaultFeaturesLayer, YMapFeature, YMapMarker } = ym;
+  const ll = ([lat, lon]) => [lon, lat];
+  const map = new YMap(container, { location: { center: ll(center), zoom }, theme: 'dark' });
+  map.addChild(new YMapDefaultSchemeLayer({ theme: 'dark' }));
+  map.addChild(new YMapDefaultFeaturesLayer());
+  return {
+    kind: 'yandex',
+    addLine(coords, color) {
+      map.addChild(new YMapFeature({
+        geometry: { type: 'LineString', coordinates: coords.map(ll) },
+        style: { stroke: [{ color, width: 4 }] },
+      }));
+    },
+    addMarker(lat, lon, html) {
+      // Yandex puts the element's top-left corner at the point; the inner
+      // wrapper centres the marker like Leaflet's iconAnchor.
+      const el = document.createElement('div');
+      el.className = 'ymark';
+      el.innerHTML = html;
+      const marker = new YMapMarker({ coordinates: [lon, lat] }, el);
+      map.addChild(marker);
+      return {
+        update(lat2, lon2, html2) {
+          marker.update({ coordinates: [lon2, lat2] });
+          if (html2 !== undefined) el.innerHTML = html2;
+        },
+        remove() { map.removeChild(marker); },
+      };
+    },
+    fit(points, padding = 32) {
+      const v = viewForPoints(points, container.clientWidth, container.clientHeight, padding, 15);
+      map.update({ location: { center: ll(v.center), zoom: v.zoom } });
+    },
+    setView(lat, lon, z) { map.update({ location: { center: [lon, lat], zoom: z, duration: 300 } }); },
+    destroy() { map.destroy(); },
+  };
+}
+
+function leafletAdapter(L, container, center, zoom) {
+  const map = L.map(container, { zoomControl: false, attributionControl: true, preferCanvas: true }).setView(center, zoom);
+  // Leaflet's default prefix (a link with a flag) is not required; the
   // OpenStreetMap credit is, so it stays.
-  map.attributionControl?.setPrefix(false);
-  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19,
-    attribution: '© OpenStreetMap',
-  }).addTo(map);
+  map.attributionControl.setPrefix(false);
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(map);
+  const icon = (html) => L.divIcon({ className: '', html: `<div class="ymark">${html}</div>`, iconSize: [0, 0] });
+  return {
+    kind: 'osm',
+    addLine(coords, color) { L.polyline(coords, { color, weight: 4, opacity: 0.95 }).addTo(map); },
+    addMarker(lat, lon, html) {
+      const m = L.marker([lat, lon], { icon: icon(html) }).addTo(map);
+      return {
+        update(lat2, lon2, html2) {
+          m.setLatLng([lat2, lon2]);
+          if (html2 !== undefined) m.setIcon(icon(html2));
+        },
+        remove() { m.remove(); },
+      };
+    },
+    fit(points, padding = 32) {
+      if (points.length === 1) map.setView(points[0], 15);
+      else map.fitBounds(L.latLngBounds(points), { padding: [padding, padding], maxZoom: 15 });
+    },
+    setView(lat, lon, z) { map.setView([lat, lon], z); },
+    destroy() { map.remove(); },
+  };
+}
+
+// Creates an interactive map in the container, Yandex if possible.
+export async function createMap(container, { center = [55.75, 37.62], zoom = 10 } = {}) {
+  try {
+    const ym = await loadYandex();
+    container.innerHTML = '';
+    return yandexAdapter(ym, container, center, zoom);
+  } catch {
+    const L = await loadLeaflet();
+    container.innerHTML = '';
+    return leafletAdapter(L, container, center, zoom);
+  }
 }
 
 export async function drawRoute(container, runs) {
@@ -47,15 +155,10 @@ export async function drawRoute(container, runs) {
     return () => {};
   }
   try {
-    const L = await loadLeaflet();
-    container.innerHTML = '';
-    const map = L.map(container, { zoomControl: true, attributionControl: true, preferCanvas: true });
-    addTiles(L, map);
-    for (const r of runs) {
-      L.polyline(r.coords, { color: zoneColor(r.zone), weight: 4, opacity: 0.95 }).addTo(map);
-    }
-    map.fitBounds(L.latLngBounds(all), { padding: [16, 16] });
-    return () => map.remove();
+    const map = await createMap(container, { center: all[0], zoom: 13 });
+    for (const r of runs) map.addLine(r.coords, zoneColor(r.zone));
+    map.fit(all, 20);
+    return () => map.destroy();
   } catch {
     drawSvg(container, runs, all);
     return () => {};
