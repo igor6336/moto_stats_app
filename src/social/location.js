@@ -5,7 +5,10 @@ import { getClient, getMe, onMeChange } from './client.js';
 import { recorder } from '../recorder.js';
 import { getSettings, saveSettings } from '../settings.js';
 
-const SEND_EVERY_MS = 10000;
+// While riding friends watch the speed, so updates are frequent; otherwise
+// a slow rate keeps the free Supabase realtime quota for the rides.
+const SEND_RIDING_MS = 3000;
+const SEND_IDLE_MS = 30000;
 // Indoors iOS often reports 100 m+; for a friends map that is still useful.
 const MAX_ACCURACY = 1000;
 export const ONLINE_MS = 2 * 60 * 1000;
@@ -22,7 +25,7 @@ async function push(force = false) {
   if (!me || !sharingEnabled() || !fix || sending) return;
   const riding = recorder.recording;
   const now = Date.now();
-  if (!force && riding === lastRiding && now - lastSent < SEND_EVERY_MS) return;
+  if (!force && riding === lastRiding && now - lastSent < (riding ? SEND_RIDING_MS : SEND_IDLE_MS)) return;
   if (fix.accuracy > MAX_ACCURACY) return;
   sending = true;
   try {

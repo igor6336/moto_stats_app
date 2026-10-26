@@ -129,7 +129,7 @@ export function mountFriends(root, { navigate }) {
     const out = [...locations.values()].filter((l) => l.user_id !== me.id);
     const fix = recorder.lastFix;
     if (fix) {
-      out.push({ user_id: me.id, lat: fix.lat, lon: fix.lon, riding: recorder.recording, updated_at: new Date().toISOString(), self: true });
+      out.push({ user_id: me.id, lat: fix.lat, lon: fix.lon, speed: fix.speed, riding: recorder.recording, updated_at: new Date().toISOString(), self: true });
     } else if (locations.has(me.id)) {
       out.push({ ...locations.get(me.id), self: true });
     }
@@ -145,8 +145,11 @@ export function mountFriends(root, { navigate }) {
       seen.add(loc.user_id);
       const online = Date.now() - new Date(loc.updated_at).getTime() < ONLINE_MS;
       const ghost = loc.self && !sharingEnabled();
-      const html = `<div class="fmark ${online ? 'on' : ''} ${loc.riding && online ? 'riding' : ''} ${loc.self ? 'me' : ''} ${ghost ? 'ghost' : ''}">
-          ${avatarHtml(p)}<span>${escapeHtml(loc.self ? (ghost ? 'Вы · невидимка' : 'Вы') : p.name)}</span></div>`;
+      const riding = loc.riding && online;
+      const label = loc.self ? (ghost ? 'Вы · невидимка' : 'Вы') : p.name;
+      const speed = riding && Number.isFinite(loc.speed) ? `<b>${fmtSpeed(loc.speed)}</b>` : '';
+      const html = `<div class="fmark ${online ? 'on' : ''} ${riding ? 'riding' : ''} ${loc.self ? 'me' : ''} ${ghost ? 'ghost' : ''}">
+          ${avatarHtml(p)}<span>${escapeHtml(label)}${speed ? ' · ' : ''}${speed}</span></div>`;
       const e = markers.get(loc.user_id);
       if (!e) markers.set(loc.user_id, { m: map.addMarker(loc.lat, loc.lon, html), lat: loc.lat, lon: loc.lon, html });
       else if (e.lat !== loc.lat || e.lon !== loc.lon || e.html !== html) {
