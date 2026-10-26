@@ -3,6 +3,7 @@ import { fetchRider, removeFriend } from '../social/friends.js';
 import { ONLINE_MS } from '../social/location.js';
 import { riderStats } from '../algo/leaderboard.js';
 import { createMap } from '../map.js';
+import { openFullscreenMap, expandable } from '../fullmap.js';
 import { avatarHtml } from '../social/avatar.js';
 import { lastSeen } from '../social/location.js';
 import { escapeHtml, fmtSpeed, speedUnit } from '../format.js';
@@ -34,6 +35,7 @@ export function mountRider(root, { params, navigate }) {
   root.appendChild(el);
   let alive = true;
   let map = null;
+  let closeFull = () => {};
   let period = 'all';
   let info = null;
 
@@ -55,7 +57,7 @@ export function mountRider(root, { params, navigate }) {
           <div class="pc-login ${online ? 'online' : ''}">${escapeHtml(isFriend ? lastSeen(loc) : 'не в друзьях')}</div>
         </div>
       </div>
-      ${isFriend && loc ? `<div class="map rider-map" data-map></div>
+      ${isFriend && loc ? `<div class="map-wrap"><div class="map rider-map" data-map></div></div>
         <div class="row route-row" data-route></div>
         <div class="hint route-hint">${escapeHtml(routeSubtitle(loc))}</div>` : ''}
       <div class="seg" data-periods>
@@ -83,6 +85,7 @@ export function mountRider(root, { params, navigate }) {
       period = b.dataset.period;
       map?.destroy();
       map = null;
+      closeFull();
       render();
     }));
     el.querySelector('[data-remove]')?.addEventListener('click', async () => {
@@ -95,11 +98,20 @@ export function mountRider(root, { params, navigate }) {
     });
     const box = el.querySelector('[data-map]');
     if (box) {
-      createMap(box, { center: [loc.lat, loc.lon], zoom: 13 }).then((m) => {
+      const marker = `<div class="fmark ${online ? 'on' : ''} ${loc.riding && online ? 'riding' : ''}">${avatarHtml(p)}</div>`;
+      const draw = async (c, zoom) => {
+        const m = await createMap(c, { center: [loc.lat, loc.lon], zoom });
+        m.addMarker(loc.lat, loc.lon, marker);
+        return m;
+      };
+      draw(box, 13).then((m) => {
         if (!alive || !box.isConnected) { m.destroy(); return; }
         map = m;
-        m.addMarker(loc.lat, loc.lon, `<div class="fmark ${online ? 'on' : ''} ${loc.riding && online ? 'riding' : ''}">${avatarHtml(p)}</div>`);
       }).catch(() => { box.innerHTML = '<div class="map-empty">Карта недоступна без сети</div>'; });
+      expandable(box, () => {
+        closeFull = openFullscreenMap(async (c) => { const m = await draw(c, 15); return () => m.destroy(); },
+          `<div class="map-legend-title">${escapeHtml(p.name)}</div><div class="hint">${escapeHtml(routeSubtitle(loc))}</div>`);
+      }, { tap: true });
     }
   }
 
@@ -112,5 +124,5 @@ export function mountRider(root, { params, navigate }) {
     if (alive) el.innerHTML = `<div class="empty">${escapeHtml(humanError(err))}</div>`;
   });
 
-  return () => { alive = false; map?.destroy(); };
+  return () => { alive = false; map?.destroy(); closeFull(); };
 }

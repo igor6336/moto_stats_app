@@ -169,8 +169,8 @@ h2 { font-size: 15px; text-transform: uppercase; letter-spacing: .06em; color: v
   height: 320px; border-radius: var(--radius); overflow: hidden;
   background: var(--panel); border: 1px solid var(--line); position: relative;
 }
-.map .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(.85) contrast(.9) saturate(.6); }
-.map .leaflet-container { background: var(--panel); }
+.map .leaflet-tile-pane, .map-full-map .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(.85) contrast(.9) saturate(.6); }
+.map .leaflet-container, .map-full-map .leaflet-container { background: var(--panel); }
 .route-svg { width: 100%; height: 100%; }
 .map-note, .map-empty { position: absolute; bottom: 8px; left: 0; right: 0; text-align: center; color: var(--muted); font-size: 13px; }
 .map-empty { top: 45%; }
@@ -372,3 +372,6 @@ form .btn + .btn { margin-top: 10px; }
 .ml-item .swatch { width: 14px; height: 14px; border-radius: 4px; margin: 0; flex: none; }
 .ml-label { font-weight: 650; }
 .ml-time { color: var(--muted); font-size: 13px; margin-left: auto; padding-right: 8px; }
+
+.friends-legend .dot { width: 16px; height: 16px; border-radius: 50%; border: 3px solid; flex: none; }
+.map-legend .hint { margin: 4px 0 0; }

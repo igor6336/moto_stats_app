@@ -5,6 +5,7 @@ import { watchLocations, setSharing, sharingEnabled, ONLINE_MS, lastSeen } from 
 export { lastSeen };
 import { recorder } from '../recorder.js';
 import { createMap } from '../map.js';
+import { openFullscreenMap, expandable } from '../fullmap.js';
 import { avatarHtml } from '../social/avatar.js';
 import { copyCode } from './account.js';
 import { escapeHtml, fmtSpeed, speedUnit } from '../format.js';
@@ -17,12 +18,13 @@ export function mountFriends(root, { navigate }) {
   root.appendChild(el);
   const body = el.querySelector('[data-body]');
   let alive = true;
-  let map = null;
-  const markers = new Map(); // user_id -> { m: marker handle, lat, lon }
+  // Each open map (the small one, the full-screen one) keeps its own markers.
+  const views = []; // { map, markers: Map(user_id -> { m, lat, lon, html }), fitted }
+  let closeFull = () => {};
+  let disposeSmall = () => {};
   let locations = new Map();
   let data = { friends: [], incoming: [], outgoing: [] };
   let unwatch = () => {};
-  let fitted = false;
 
   if (!socialConfigured()) {
     body.innerHTML = '<div class="empty">Сервер друзей ещё не подключён.</div>';
@@ -38,7 +40,7 @@ export function mountFriends(root, { navigate }) {
 
   recorder.startGps();
   body.innerHTML = `
-    <div class="map friends-map" data-map></div>
+    <div class="map-wrap"><div class="map friends-map" data-map></div></div>
     <label class="switch-row">
       <span>Показывать меня друзьям<small>Только пока приложение открыто</small></span>
       <input type="checkbox" data-share ${sharingEnabled() ? 'checked' : ''}>
@@ -135,9 +137,13 @@ export function mountFriends(root, { navigate }) {
   }
 
   function updateMarkers() {
-    if (!map) return;
+    const locs = visibleLocations();
+    for (const view of views) updateView(view, locs);
+  }
+
+  function updateView({ map, markers, ...view }, locs) {
     const seen = new Set();
-    for (const loc of visibleLocations()) {
+    for (const loc of locs) {
       const p = profileOf(loc.user_id);
       if (!p) continue;
       seen.add(loc.user_id);
@@ -164,13 +170,30 @@ export function mountFriends(root, { navigate }) {
       }
     }
     for (const [id, e] of markers) if (!seen.has(id)) { e.m.remove(); markers.delete(id); }
-    if (!fitted && markers.size) {
-      fitted = true;
+    if (!view.state.fitted && markers.size) {
+      view.state.fitted = true;
       const pts = [...markers.values()].map((e) => [e.lat, e.lon]);
       if (pts.length === 1) map.setView(pts[0][0], pts[0][1], 13);
       else map.fit(pts, 48);
     }
   }
+
+  function addView(map) {
+    const view = { map, markers: new Map(), state: { fitted: false } };
+    views.push(view);
+    updateView(view, visibleLocations());
+    return () => {
+      views.splice(views.indexOf(view), 1);
+      map.destroy();
+    };
+  }
+
+  const LEGEND = `<div class="map-legend-items friends-legend">
+    <div class="ml-item"><span class="dot" style="border-color:#4aa3ff"></span><span class="ml-label">Вы</span></div>
+    <div class="ml-item"><span class="dot" style="border-color:var(--accent)"></span><span class="ml-label">Едет</span></div>
+    <div class="ml-item"><span class="dot" style="border-color:var(--ok)"></span><span class="ml-label">В сети</span></div>
+    <div class="ml-item"><span class="dot" style="border-color:#555"></span><span class="ml-label">Давно не заходил</span></div>
+  </div>`;
 
   async function refresh() {
     try {
@@ -185,9 +208,14 @@ export function mountFriends(root, { navigate }) {
 
   (async () => {
     try {
-      const m = await createMap(body.querySelector('[data-map]'));
+      const box = body.querySelector('[data-map]');
+      const m = await createMap(box);
       if (!alive) { m.destroy(); return; }
-      map = m;
+      disposeSmall = addView(m);
+      // Button only: a tap on the small map may be a tap on a friend.
+      expandable(box, () => {
+        closeFull = openFullscreenMap(async (c) => addView(await createMap(c)), LEGEND);
+      });
     } catch {
       body.querySelector('[data-map]').innerHTML = '<div class="map-empty">Карта недоступна без сети</div>';
     }
@@ -213,6 +241,7 @@ export function mountFriends(root, { navigate }) {
     recorder.removeEventListener('gps', onGps);
     clearInterval(timer);
     unwatch();
-    map?.destroy();
+    closeFull();
+    disposeSmall();
   };
 }
