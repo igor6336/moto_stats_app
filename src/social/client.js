@@ -56,8 +56,11 @@ export function humanError(e) {
 
 const emailFor = (login) => `${login}@${LOGIN_EMAIL_DOMAIN}`;
 
+// Not '*': the large avatar is only fetched for the photo viewer.
+const OWN_COLS = 'id, public_id, login, name, bike, avatar, created_at';
+
 async function loadProfile(sb, userId) {
-  const { data, error } = await sb.from('profiles').select('*').eq('id', userId).maybeSingle();
+  const { data, error } = await sb.from('profiles').select(OWN_COLS).eq('id', userId).maybeSingle();
   if (error) throw error;
   return data;
 }
@@ -76,7 +79,18 @@ export async function initSession() {
   return me;
 }
 
-export async function signUp({ login, password, name, bike, avatar }) {
+// Writes a profile row; drops avatar_full if the server schema predates it.
+async function writeProfile(run, row) {
+  let res = await run(row);
+  if (res.error && /avatar_full/.test(res.error.message || '') && 'avatar_full' in row) {
+    const { avatar_full: _, ...rest } = row;
+    res = await run(rest);
+  }
+  if (res.error) throw res.error;
+  return res.data;
+}
+
+export async function signUp({ login, password, name, bike, avatar, avatarFull }) {
   login = login.trim().toLowerCase();
   if (!LOGIN_RE.test(login)) throw new Error('Логин: 3–24 символа, латиница, цифры, _');
   if (!name.trim()) throw new Error('Укажите имя');
@@ -84,10 +98,9 @@ export async function signUp({ login, password, name, bike, avatar }) {
   const { data, error } = await sb.auth.signUp({ email: emailFor(login), password });
   if (error) throw error;
   if (!data.session) throw new Error('В Supabase не отключено подтверждение e-mail (Confirm email)');
-  const { data: profile, error: pErr } = await sb.from('profiles')
-    .insert({ id: data.user.id, login, name: name.trim(), bike: bike.trim(), avatar: avatar || null })
-    .select().single();
-  if (pErr) throw pErr;
+  const row = { id: data.user.id, login, name: name.trim(), bike: bike.trim(), avatar: avatar || null };
+  if (avatarFull) row.avatar_full = avatarFull;
+  const profile = await writeProfile((r) => sb.from('profiles').insert(r).select(OWN_COLS).single(), row);
   setMe(profile);
   return profile;
 }
@@ -111,8 +124,14 @@ export async function signOut() {
 
 export async function updateProfile(patch) {
   const sb = await getClient();
-  const { data, error } = await sb.from('profiles').update(patch).eq('id', me.id).select().single();
-  if (error) throw error;
+  const data = await writeProfile((r) => sb.from('profiles').update(r).eq('id', me.id).select(OWN_COLS).single(), patch);
   setMe(data);
   return data;
+}
+
+// Large avatar of any rider, or null (none uploaded / old schema).
+export async function fetchAvatarFull(id) {
+  const sb = await getClient();
+  const { data, error } = await sb.from('profiles').select('avatar_full').eq('id', id).maybeSingle();
+  return error ? null : data?.avatar_full || null;
 }

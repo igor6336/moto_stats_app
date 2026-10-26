@@ -1,10 +1,10 @@
-import { getMe, humanError } from '../social/client.js';
+import { getMe, humanError, fetchAvatarFull } from '../social/client.js';
 import { fetchRider, removeFriend } from '../social/friends.js';
 import { ONLINE_MS } from '../social/location.js';
 import { riderStats } from '../algo/leaderboard.js';
 import { createMap } from '../map.js';
 import { openFullscreenMap, expandable } from '../fullmap.js';
-import { avatarHtml } from '../social/avatar.js';
+import { avatarHtml, safeAvatar, openAvatarViewer } from '../social/avatar.js';
 import { lastSeen } from '../social/location.js';
 import { escapeHtml, fmtSpeed, speedUnit } from '../format.js';
 import { h, toast } from '../ui.js';
@@ -73,6 +73,12 @@ export function mountRider(root, { params, navigate }) {
       ${friendship ? `<div class="actions"><button class="btn danger ghost" data-remove>${isFriend ? 'Удалить из друзей' : 'Отменить запрос'}</button></div>` : ''}`;
 
     el.querySelector('[data-back]').addEventListener('click', () => history.back());
+    const photo = safeAvatar(p.avatar);
+    if (photo) {
+      const a = el.querySelector('.profile-card .avatar');
+      a.classList.add('tappable');
+      a.addEventListener('click', () => openAvatarViewer(photo, () => fetchAvatarFull(p.id)));
+    }
     const routeBox = el.querySelector('[data-route]');
     if (routeBox) {
       const maps = routeAction(loc);

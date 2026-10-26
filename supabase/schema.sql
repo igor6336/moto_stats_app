@@ -114,6 +114,10 @@ create table if not exists public.rides (
 );
 create index if not exists rides_user_started on public.rides (user_id, started_at);
 
+-- Large avatar for the full-screen photo view (added in app 0.6.2).
+alter table public.profiles add column if not exists avatar_full text
+  check (avatar_full is null or char_length(avatar_full) < 400000);
+
 -- Best acceleration times per ride, seconds (added in app 0.4.0).
 alter table public.rides add column if not exists accel_0_100_s real
   check (accel_0_100_s is null or accel_0_100_s between 2 and 60);

@@ -1,6 +1,6 @@
-import { socialConfigured, getMe, onMeChange, signIn, signUp, signOut, updateProfile, humanError } from '../social/client.js';
+import { socialConfigured, getMe, onMeChange, signIn, signUp, signOut, updateProfile, humanError, fetchAvatarFull } from '../social/client.js';
 import { syncRides } from '../social/rides.js';
-import { fileToAvatar, avatarHtml } from '../social/avatar.js';
+import { fileToAvatar, avatarHtml, safeAvatar, openAvatarViewer, AVATAR_FULL } from '../social/avatar.js';
 import { escapeHtml } from '../format.js';
 import { h, toast } from '../ui.js';
 
@@ -9,6 +9,7 @@ export function mountAccount(root, { navigate }) {
   root.appendChild(el);
   let mode = 'login'; // login | register | edit
   let avatar = null;   // pending avatar data URL in forms
+  let avatarFull = null;
 
   function render() {
     if (!socialConfigured()) {
@@ -43,6 +44,12 @@ export function mountAccount(root, { navigate }) {
         <button class="btn danger ghost" data-logout>Выйти</button>
       </div>`;
     el.querySelector('[data-copy]').addEventListener('click', () => copyCode(me.public_id));
+    const photo = safeAvatar(me.avatar);
+    if (photo) {
+      const a = el.querySelector('.profile-card .avatar');
+      a.classList.add('tappable');
+      a.addEventListener('click', () => openAvatarViewer(photo, () => fetchAvatarFull(me.id)));
+    }
     el.querySelector('[data-edit]').addEventListener('click', () => { mode = 'edit'; avatar = null; render(); });
     el.querySelector('[data-logout]').addEventListener('click', async () => {
       if (!confirm('Выйти из аккаунта? Поездки на телефоне останутся.')) return;
@@ -92,6 +99,7 @@ export function mountAccount(root, { navigate }) {
       if (!f) return;
       try {
         avatar = await fileToAvatar(f);
+        avatarFull = await fileToAvatar(f, AVATAR_FULL);
         el.querySelector('[data-avatar]').innerHTML = avatarHtml({ avatar }, 'avatar xl');
       } catch (err) { toast(err.message); }
     });
@@ -104,12 +112,12 @@ export function mountAccount(root, { navigate }) {
       try {
         if (edit) {
           const patch = { name: v.name.trim(), bike: v.bike.trim() };
-          if (avatar) patch.avatar = avatar;
+          if (avatar) { patch.avatar = avatar; patch.avatar_full = avatarFull; }
           await updateProfile(patch);
           mode = 'login';
           toast('Профиль сохранён');
         } else if (reg) {
-          await signUp({ ...v, avatar });
+          await signUp({ ...v, avatar, avatarFull });
           toast('Готово! Покажите друзьям свой код');
         } else {
           await signIn(v);
