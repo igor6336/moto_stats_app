@@ -111,10 +111,10 @@ function yandexAdapter(ym, container, center, zoom) {
 }
 
 function leafletAdapter(L, container, center, zoom) {
-  // No animations: removing a map mid-animation (leaving the screen) throws
-  // inside Leaflet.
+  // No animations and the SVG renderer: removing a map mid-animation or
+  // with a canvas redraw pending (leaving the screen) throws inside Leaflet.
   const map = L.map(container, {
-    zoomControl: false, attributionControl: true, preferCanvas: true,
+    zoomControl: false, attributionControl: true,
     zoomAnimation: false, fadeAnimation: false, markerZoomAnimation: false,
   }).setView(center, zoom);
   // Leaflet's default prefix (a link with a flag) is not required; the
