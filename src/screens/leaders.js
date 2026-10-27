@@ -55,7 +55,7 @@ export function mountLeaders(root, { navigate }) {
     const box = body.querySelector('[data-board]');
     if (cat.pending && !rows.length) {
       box.innerHTML = `<div class="empty">Появится после настройки алгоритма стойки.<br>
-        Для этого нужна поездка со стойкой и калибровкой перед стартом.</div>`;
+        Для этого нужна поездка со стойкой.</div>`;
       return;
     }
     if (!rows.length) { box.innerHTML = '<div class="empty">Нет поездок за этот период</div>'; return; }

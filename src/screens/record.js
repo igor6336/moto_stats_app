@@ -144,7 +144,7 @@ export function mountRecord(root, { navigate }) {
       return;
     }
     if (!c) {
-      box.innerHTML = recorder.state === 'idle' ? '' : 'Калибровки нет. Поставьте мотоцикл ровно (не на боковую подножку) и нажмите «Калибровка».';
+      box.innerHTML = recorder.state === 'idle' ? '' : 'Калибровка не обязательна: наклон считается по прямым участкам поездки. Для коротких поездок по кругу — мотоцикл ровно (не на подножке) и «Калибровка».';
       return;
     }
     const dev = recorder.deviation();

@@ -56,16 +56,33 @@ test('mount offset is taken out using the straights', () => {
   const gpsAt = (t) => (t >= 30 && t < 36 ? -30 : 0);
   const res = lean(ride(90, at, gpsAt));
   assert.ok(Math.abs(res.left - 30) < 1, `left ${res.left}`);
-  assert.ok(Math.abs(res.bias - 4) < 0.5);
+  assert.equal(res.reference, 'auto'); // the straights absorb the offset
+  assert.ok(Math.abs(res.bias) < 0.5);
 });
 
 test('no calibration or a phone lying flat gives nothing', () => {
   const r = ride(30, () => 0);
-  assert.equal(lean(r, null), null);
+  assert.equal(lean({ ...r, gps: [] }, null), null);
   assert.equal(bikeAxes([0, 0, -9.81]), null);
 });
 
 test('a few degrees of body roll (a car) is not a record', () => {
   const at = (t) => (t >= 20 && t < 26 ? 4 : 0);
   assert.equal(lean(ride(60, at)).right, null);
+});
+
+test('without calibration the straights give the upright reference', () => {
+  // phone mounted 6 degrees rolled, no calibration
+  const at = (t) => 6 + (t >= 40 && t < 46 ? 30 : 0);
+  const gpsAt = (t) => (t >= 40 && t < 46 ? 30 : 0);
+  const res = lean(ride(90, at, gpsAt), null);
+  assert.equal(res.reference, 'auto');
+  assert.ok(Math.abs(res.right - 30) < 1, `right ${res.right}`);
+});
+
+test('a short ride without straights falls back to the calibration', () => {
+  const at = (t) => (t >= 5 && t < 12 ? 25 : 0);
+  const res = lean(ride(15, at));
+  assert.equal(res.reference, 'manual');
+  assert.ok(Math.abs(res.right - 25) < 1, `right ${res.right}`);
 });

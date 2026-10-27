@@ -17,7 +17,7 @@
 // fully in memory), result() finishes with the GPS rows.
 import { G, M } from './schema.js';
 
-export const LEAN_VERSION = 2;
+export const LEAN_VERSION = 3;
 const BIN_S = 0.1;         // resampling step
 const HOLD_S = 1.5;        // a record must be held this long
 const MIN_KMH = 20;        // no records near standstill (foot down, stand)
@@ -45,33 +45,57 @@ export function bikeAxes(gravity) {
   return { down, fwd, right: norm(cross(down, fwd)) };
 }
 
+// Upright reference from the ride itself: the mean gravity direction on
+// straights at a steady speed, where a motorcycle stands up. Needs at least
+// AUTO_MIN_S of such riding; the manual calibration is the fallback.
+const AUTO_MIN_S = 30;
+const STEADY_ACCEL = 0.7;  // m/s2: harder acceleration or braking pitches the bike
+
+export function autoReference(bins, gps) {
+  const sum = [0, 0, 0];
+  let n = 0;
+  for (const g of gps) {
+    if (g.kmh < MIN_KMH || Math.abs(g.lean) >= STRAIGHT_DEG || Math.abs(g.accel) > STEADY_ACCEL) continue;
+    for (let b = Math.floor((g.t - 0.5) / BIN_S); b < Math.floor((g.t + 0.5) / BIN_S); b++) {
+      const c = bins.get(b);
+      if (!c) continue;
+      const d = norm(c);
+      if (!d) continue;
+      sum[0] += d[0]; sum[1] += d[1]; sum[2] += d[2]; n++;
+    }
+  }
+  return n * BIN_S >= AUTO_MIN_S ? norm(sum) : null;
+}
+
 export class LeanAccumulator {
   constructor(calibration) {
-    this.axes = calibration?.ok ? bikeAxes(calibration.gravity) : null;
-    this.bins = new Map(); // bin index -> [sum, count]
+    this.calibration = calibration?.ok ? calibration.gravity : null;
+    this.bins = new Map(); // bin index -> [sum gx, sum gy, sum gz, count]
   }
 
   add(motion) {
-    const ax = this.axes;
-    if (!ax || !motion) return;
+    if (!motion) return;
     for (const r of motion) {
       const gx = r[M.gx] - r[M.ax], gy = r[M.gy] - r[M.ay], gz = r[M.gz] - r[M.az];
       if (!Number.isFinite(gx + gy + gz)) continue;
-      const d = [gx, gy, gz];
-      const lean = Math.atan2(dot(d, ax.right), dot(d, ax.down)) * R2D;
       const b = Math.floor(r[M.t] / 1000 / BIN_S);
-      const cell = this.bins.get(b);
-      if (cell) { cell[0] += lean; cell[1]++; } else this.bins.set(b, [lean, 1]);
+      const c = this.bins.get(b);
+      if (c) { c[0] += gx; c[1] += gy; c[2] += gz; c[3]++; } else this.bins.set(b, [gx, gy, gz, 1]);
     }
   }
 
-  // { left, right } in degrees (positive), null where nothing qualified;
-  // null overall without a usable calibration or sensor data.
+  // { left, right } in degrees (positive) or null where nothing qualified,
+  // plus where the upright reference came from; null overall without sensor
+  // data or any reference.
   result(gpsRows) {
-    if (!this.axes || !this.bins.size) return null;
+    if (!this.bins.size) return null;
     const gps = gpsLean(gpsRows);
+    const auto = autoReference(this.bins, gps);
+    const reference = auto ? 'auto' : this.calibration ? 'manual' : null;
+    const axes = bikeAxes(auto || this.calibration || [0, 0, 0]);
+    if (!axes) return reference ? { v: LEAN_VERSION, right: null, left: null, reference, reason: 'flat' } : null;
     const leanAt = new Map();
-    for (const [b, [sum, n]] of this.bins) leanAt.set(b, sum / n);
+    for (const [b, c] of this.bins) leanAt.set(b, Math.atan2(dot(c, axes.right), dot(c, axes.down)) * R2D);
 
     // Mount offset: median lean while GPS says riding straight.
     const straight = [];
@@ -112,7 +136,7 @@ export class LeanAccumulator {
       }
     }
     const round = (x) => (x === null || x < MIN_LEAN ? null : Math.round(x * 10) / 10);
-    return { v: LEAN_VERSION, right: round(best.right), left: round(best.left), bias: Math.round(bias * 10) / 10 };
+    return { v: LEAN_VERSION, right: round(best.right), left: round(best.left), bias: Math.round(bias * 10) / 10, reference };
   }
 }
 
@@ -128,7 +152,8 @@ export function gpsLean(rows) {
       const dh = ((r[G.heading] - prev.h + 540) % 360) - 180;
       const v = (r[G.speed] + prev.v) / 2;
       const rate = (dh / (t - prev.t)) / R2D;
-      out.push({ t: (t + prev.t) / 2, kmh: v * 3.6, lean: Math.atan((v * rate) / 9.81) * R2D });
+      out.push({ t: (t + prev.t) / 2, kmh: v * 3.6, lean: Math.atan((v * rate) / 9.81) * R2D,
+        accel: (r[G.speed] - prev.v) / (t - prev.t) });
     }
     prev = { t, h: r[G.heading], v: r[G.speed] };
   }

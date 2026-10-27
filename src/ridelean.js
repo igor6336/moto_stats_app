@@ -7,14 +7,12 @@ import { LeanAccumulator, LEAN_VERSION } from './algo/lean.js';
 // Computes ride.lean if missing or from an older algorithm; returns the ride.
 export async function ensureLean(ride) {
   if (ride.status === 'recording' || ride.sensorsDeleted || ride.lean?.v === LEAN_VERSION) return ride;
-  const calib = (ride.calibrations || []).find((c) => c.ok);
-  let lean = { v: LEAN_VERSION, right: null, left: null, reason: 'no-calibration' };
-  if (calib) {
-    const acc = new LeanAccumulator(calib);
-    await forEachSensorChunk(ride.id, (chunk) => acc.add(chunk.motion));
-    const { gps } = await getGpsData(ride.id);
-    lean = acc.result(gps) || { v: LEAN_VERSION, right: null, left: null, reason: 'no-data' };
-  }
+  // The upright reference comes from the ride's straights; a manual
+  // calibration is only the fallback for rides without them.
+  const acc = new LeanAccumulator((ride.calibrations || []).find((c) => c.ok));
+  await forEachSensorChunk(ride.id, (chunk) => acc.add(chunk.motion));
+  const { gps } = await getGpsData(ride.id);
+  const lean = acc.result(gps) || { v: LEAN_VERSION, right: null, left: null, reason: ride.counts?.motion ? 'no-reference' : 'no-data' };
   // Re-read: the ride may have changed (sync, exclusion) while computing.
   const fresh = (await getRide(ride.id)) || ride;
   fresh.lean = lean;
