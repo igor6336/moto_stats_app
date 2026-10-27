@@ -8,6 +8,7 @@
 import { YANDEX_MAPS_KEY } from './config.js';
 import { viewForPoints } from './algo/geo.js';
 import { currentTheme } from './theme.js';
+import { currentPalette } from './palettes.js';
 
 const LEAFLET = 'https://unpkg.com/leaflet@1.9.4/dist/';
 const LOAD_TIMEOUT_MS = 8000;
@@ -202,6 +203,11 @@ function drawSvg(container, runs, all) {
 // Small static route preview for history cards: [[lat, lon], ...] -> <svg>.
 // The gradient is in user space: a bounding-box gradient vanishes on a
 // perfectly straight (zero-height) route.
+const thumbStops = () => {
+  const c = currentPalette().stops[currentTheme()];
+  return `<stop offset="0" stop-color="${c[1]}"/><stop offset=".55" stop-color="${c[2]}"/><stop offset="1" stop-color="${c[4]}"/>`;
+};
+
 export function routeThumb(points, size = 60) {
   if (points.length < 2) return '';
   const step = Math.max(1, Math.floor(points.length / 160));
@@ -217,7 +223,7 @@ export function routeThumb(points, size = 60) {
   const line = pts.map((_, i) => xy(i).join(',')).join(' ');
   const [sx, sy] = xy(0), [ex, ey] = xy(pts.length - 1);
   return `<svg viewBox="0 0 ${size} ${size}" aria-hidden="true">
-    <defs><linearGradient id="tg" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="${size}" y2="${size}"><stop offset="0" stop-color="#7dd3fc"/><stop offset=".55" stop-color="#3b82f6"/><stop offset="1" stop-color="#6d28d9"/></linearGradient></defs>
+    <defs><linearGradient id="tg" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="${size}" y2="${size}">${thumbStops()}</linearGradient></defs>
     <polyline points="${line}" fill="none" stroke="url(#tg)" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>
     <circle cx="${sx}" cy="${sy}" r="3" fill="#34d399"/><circle cx="${ex}" cy="${ey}" r="3" fill="#f87171"/></svg>`;
 }

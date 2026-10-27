@@ -7,6 +7,7 @@
   var light = pref === 'light' || (pref === 'system' && window.matchMedia('(prefers-color-scheme: light)').matches);
   var theme = light ? 'light' : 'dark';
   document.documentElement.dataset.theme = theme;
+  try { document.documentElement.dataset.palette = localStorage.getItem('palette') || 'depth'; } catch (e) { /* private mode */ }
   var bar = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
   if (bar) bar.content = light ? 'default' : 'black-translucent';
   var color = document.querySelector('meta[name="theme-color"]');

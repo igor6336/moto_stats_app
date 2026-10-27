@@ -24,4 +24,11 @@ export function setThemePreference(value) {
   apply();
 }
 
+export function setPalette(id) {
+  try { localStorage.setItem('palette', id); } catch { /* private mode */ }
+  if (document.documentElement.dataset.palette === id) return;
+  document.documentElement.dataset.palette = id;
+  window.dispatchEvent(new CustomEvent('themechange', { detail: currentTheme() }));
+}
+
 media.addEventListener('change', () => { if (pref === 'system') apply(); });

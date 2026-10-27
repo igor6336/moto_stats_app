@@ -1,5 +1,6 @@
 import { getSettings, saveSettings, parseZones, DEFAULT_SETTINGS } from '../settings.js';
-import { setThemePreference } from '../theme.js';
+import { setThemePreference, setPalette } from '../theme.js';
+import { PALETTES } from '../palettes.js';
 import { exportBackup, importFile } from '../export.js';
 import { recoverInterrupted, isStandalone } from '../recorder.js';
 import { listRides, sensorBytes } from '../storage.js';
@@ -27,6 +28,10 @@ export function mountSettings(root, { navigate }) {
       <div class="seg" data-theme-pick>
         ${[['system', 'Как в iOS'], ['dark', 'Тёмная'], ['light', 'Светлая']].map(([v, l]) =>
           `<button data-v="${v}" class="${(s.theme || 'system') === v ? 'on' : ''}">${l}</button>`).join('')}
+      </div>
+      <div class="palettes" data-palette-pick>
+        ${PALETTES.map((p) => `<button data-v="${p.id}" class="${(s.palette || 'depth') === p.id ? 'on' : ''}">
+          <span class="pal-swatch" style="background:linear-gradient(135deg, ${p.stops.dark.slice(1).join(', ')})"></span>${p.name}</button>`).join('')}
       </div>
       <h2>Запись</h2>
       <div class="group">
@@ -68,6 +73,11 @@ export function mountSettings(root, { navigate }) {
     el.querySelectorAll('[data-theme-pick] button').forEach((x) => x.classList.toggle('on', x === b));
     setThemePreference(b.dataset.v);
     await saveSettings({ theme: b.dataset.v });
+  }));
+  el.querySelectorAll('[data-palette-pick] button').forEach((b) => b.addEventListener('click', async () => {
+    el.querySelectorAll('[data-palette-pick] button').forEach((x) => x.classList.toggle('on', x === b));
+    setPalette(b.dataset.v);
+    await saveSettings({ palette: b.dataset.v });
   }));
 
   el.querySelector('[data-save]').addEventListener('click', async () => {

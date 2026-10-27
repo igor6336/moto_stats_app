@@ -5,6 +5,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
   units: 'kmh',                 // 'kmh' | 'mph'
   shareLocation: true,          // show position to friends while the app is open
   theme: 'system',              // 'system' | 'dark' | 'light'
+  palette: 'depth',             // accent palette id, see src/palettes.js
 });
 
 let current = { ...DEFAULT_SETTINGS };

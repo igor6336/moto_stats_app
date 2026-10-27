@@ -3,6 +3,7 @@ import { wakeLockState, onWakeLockChange } from '../wakelock.js';
 import { fmtSpeed, speedUnit, speedValue, fmtDistance, fmtDuration } from '../format.js';
 import { getSettings } from '../settings.js';
 import { currentTheme } from '../theme.js';
+import { currentPalette, gaugeStops } from '../palettes.js';
 import { DEFAULTS } from '../algo/stats.js';
 import { icon } from '../icons.js';
 import { h, toast, longPress } from '../ui.js';
@@ -14,11 +15,8 @@ const ARC = 'M 40.6 159.4 A 84 84 0 1 1 159.4 159.4';
 const ARC_LEN = 84 * Math.PI * 1.5;
 // Colour runs along the arc (SVG has no conic gradient): short segments
 // coloured from white to violet, revealed by the arc-shaped mask.
-// On a light background white would vanish: the light theme starts pale blue.
-const GAUGE_STOPS = {
-  dark: [[0, [255, 255, 255]], [0.3, [125, 211, 252]], [0.6, [59, 130, 246]], [0.82, [79, 70, 229]], [1, [109, 40, 217]]],
-  light: [[0, [186, 230, 253]], [0.3, [56, 189, 248]], [0.6, [37, 99, 235]], [0.82, [67, 56, 202]], [1, [91, 33, 182]]],
-};
+// Stops come from the chosen palette; light themes start from a tint, not
+// white, which would vanish on a light background.
 function gaugeColor(f, stops) {
   let i = 1;
   while (i < stops.length - 1 && stops[i][0] < f) i++;
@@ -42,7 +40,7 @@ const gaugeSvg = (theme) => `<svg class="gauge" viewBox="0 0 200 180" aria-hidde
   </mask></defs>
   <path class="track" d="${ARC}" fill="none" stroke-width="10" stroke-linecap="round"/>
   <path class="ticks" d="M 49.1 150.9 A 72 72 0 1 1 150.9 150.9" fill="none" stroke-width="5" stroke-dasharray="1.5 15.46"/>
-  <g class="bar-glow"><g mask="url(#gauge-mask)" fill="none" stroke-width="14">${gaugeSegments(GAUGE_STOPS[theme])}</g></g>
+  <g class="bar-glow"><g mask="url(#gauge-mask)" fill="none" stroke-width="14">${gaugeSegments(gaugeStops(currentPalette(), theme))}</g></g>
 </svg>`;
 const UNLOCK_HOLD_MS = 1500;
 

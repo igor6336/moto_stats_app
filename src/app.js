@@ -1,5 +1,5 @@
 import { loadSettings } from './settings.js';
-import { setThemePreference } from './theme.js';
+import { setThemePreference, setPalette } from './theme.js';
 import { icon } from './icons.js';
 import { recorder, recoverInterrupted } from './recorder.js';
 import { mountRecord } from './screens/record.js';
@@ -65,7 +65,9 @@ const TAB_ICONS = { record: 'gauge', history: 'history', friends: 'users', leade
 document.querySelectorAll('.tabbar a').forEach((a) => a.insertAdjacentHTML('afterbegin', icon(TAB_ICONS[a.dataset.tab])));
 
 async function boot() {
-  setThemePreference((await loadSettings()).theme);
+  const settings = await loadSettings();
+  setThemePreference(settings.theme);
+  setPalette(settings.palette);
   await recorder.loadPendingCalibration();
   await recoverInterrupted();
   window.addEventListener('hashchange', render);
