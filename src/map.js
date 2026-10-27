@@ -7,6 +7,7 @@
 // Coordinates are [lat, lon] everywhere in the app; Yandex wants [lon, lat].
 import { YANDEX_MAPS_KEY } from './config.js';
 import { viewForPoints } from './algo/geo.js';
+import { currentTheme } from './theme.js';
 
 const LEAFLET = 'https://unpkg.com/leaflet@1.9.4/dist/';
 const LOAD_TIMEOUT_MS = 8000;
@@ -76,8 +77,9 @@ function loadYandex() {
 function yandexAdapter(ym, container, center, zoom) {
   const { YMap, YMapDefaultSchemeLayer, YMapDefaultFeaturesLayer, YMapFeature, YMapMarker } = ym;
   const ll = ([lat, lon]) => [lon, lat];
-  const map = new YMap(container, { location: { center: ll(center), zoom }, theme: 'dark' });
-  map.addChild(new YMapDefaultSchemeLayer({ theme: 'dark' }));
+  const theme = currentTheme();
+  const map = new YMap(container, { location: { center: ll(center), zoom }, theme });
+  map.addChild(new YMapDefaultSchemeLayer({ theme }));
   map.addChild(new YMapDefaultFeaturesLayer());
   return {
     kind: 'yandex',
@@ -215,7 +217,7 @@ export function routeThumb(points, size = 60) {
   const line = pts.map((_, i) => xy(i).join(',')).join(' ');
   const [sx, sy] = xy(0), [ex, ey] = xy(pts.length - 1);
   return `<svg viewBox="0 0 ${size} ${size}" aria-hidden="true">
-    <defs><linearGradient id="tg" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="${size}" y2="${size}"><stop offset="0" stop-color="#ffae2b"/><stop offset="1" stop-color="#ff5a0f"/></linearGradient></defs>
+    <defs><linearGradient id="tg" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="${size}" y2="${size}"><stop offset="0" stop-color="#7dd3fc"/><stop offset=".55" stop-color="#3b82f6"/><stop offset="1" stop-color="#6d28d9"/></linearGradient></defs>
     <polyline points="${line}" fill="none" stroke="url(#tg)" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>
     <circle cx="${sx}" cy="${sy}" r="3" fill="#34d399"/><circle cx="${ex}" cy="${ey}" r="3" fill="#f87171"/></svg>`;
 }

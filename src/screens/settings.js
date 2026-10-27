@@ -1,4 +1,5 @@
 import { getSettings, saveSettings, parseZones, DEFAULT_SETTINGS } from '../settings.js';
+import { setThemePreference } from '../theme.js';
 import { exportBackup, importFile } from '../export.js';
 import { recoverInterrupted, isStandalone } from '../recorder.js';
 import { listRides, sensorBytes } from '../storage.js';
@@ -22,6 +23,11 @@ export function mountSettings(root, { navigate }) {
           : '<span class="avatar avatar-empty">?</span><span><b>Войти / Регистрация</b><small>Друзья, карта и лидеры</small></span>'}
         <i>${icon('chevron-right')}</i>
       </button>` : ''}
+      <h2>Оформление</h2>
+      <div class="seg" data-theme-pick>
+        ${[['system', 'Как в iOS'], ['dark', 'Тёмная'], ['light', 'Светлая']].map(([v, l]) =>
+          `<button data-v="${v}" class="${(s.theme || 'system') === v ? 'on' : ''}">${l}</button>`).join('')}
+      </div>
       <h2>Запись</h2>
       <div class="group">
       <label class="field">
@@ -58,6 +64,11 @@ export function mountSettings(root, { navigate }) {
     </section>`);
   root.appendChild(el);
   el.querySelector('[data-account]')?.addEventListener('click', () => navigate('#/account'));
+  el.querySelectorAll('[data-theme-pick] button').forEach((b) => b.addEventListener('click', async () => {
+    el.querySelectorAll('[data-theme-pick] button').forEach((x) => x.classList.toggle('on', x === b));
+    setThemePreference(b.dataset.v);
+    await saveSettings({ theme: b.dataset.v });
+  }));
 
   el.querySelector('[data-save]').addEventListener('click', async () => {
     const zones = parseZones(el.querySelector('[data-zones]').value);

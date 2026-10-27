@@ -2,6 +2,7 @@ import { recorder, isStandalone } from '../recorder.js';
 import { wakeLockState, onWakeLockChange } from '../wakelock.js';
 import { fmtSpeed, speedUnit, speedValue, fmtDistance, fmtDuration } from '../format.js';
 import { getSettings } from '../settings.js';
+import { currentTheme } from '../theme.js';
 import { DEFAULTS } from '../algo/stats.js';
 import { icon } from '../icons.js';
 import { h, toast, longPress } from '../ui.js';
@@ -13,31 +14,35 @@ const ARC = 'M 40.6 159.4 A 84 84 0 1 1 159.4 159.4';
 const ARC_LEN = 84 * Math.PI * 1.5;
 // Colour runs along the arc (SVG has no conic gradient): short segments
 // coloured from white to violet, revealed by the arc-shaped mask.
-const GAUGE_STOPS = [[0, [255, 255, 255]], [0.3, [125, 211, 252]], [0.6, [59, 130, 246]], [0.82, [79, 70, 229]], [1, [109, 40, 217]]];
-function gaugeColor(f) {
+// On a light background white would vanish: the light theme starts pale blue.
+const GAUGE_STOPS = {
+  dark: [[0, [255, 255, 255]], [0.3, [125, 211, 252]], [0.6, [59, 130, 246]], [0.82, [79, 70, 229]], [1, [109, 40, 217]]],
+  light: [[0, [186, 230, 253]], [0.3, [56, 189, 248]], [0.6, [37, 99, 235]], [0.82, [67, 56, 202]], [1, [91, 33, 182]]],
+};
+function gaugeColor(f, stops) {
   let i = 1;
-  while (i < GAUGE_STOPS.length - 1 && GAUGE_STOPS[i][0] < f) i++;
-  const [f0, c0] = GAUGE_STOPS[i - 1], [f1, c1] = GAUGE_STOPS[i];
+  while (i < stops.length - 1 && stops[i][0] < f) i++;
+  const [f0, c0] = stops[i - 1], [f1, c1] = stops[i];
   const k = Math.min(1, Math.max(0, (f - f0) / (f1 - f0)));
   return `rgb(${c0.map((c, j) => Math.round(c + (c1[j] - c) * k)).join(',')})`;
 }
-function gaugeSegments(n = 72) {
+function gaugeSegments(stops, n = 72) {
   const pt = (deg) => { const a = (deg * Math.PI) / 180; return `${(100 + 84 * Math.cos(a)).toFixed(2)} ${(100 + 84 * Math.sin(a)).toFixed(2)}`; };
   let out = '';
   for (let i = -2; i < n + 2; i++) { // a little past both ends for the round caps
     const a0 = 135 + (270 * i) / n, a1 = 135 + (270 * (i + 1.15)) / n;
-    out += `<path d="M ${pt(a0)} A 84 84 0 0 1 ${pt(a1)}" stroke="${gaugeColor(Math.min(1, Math.max(0, (i + 0.5) / n)))}"/>`;
+    out += `<path d="M ${pt(a0)} A 84 84 0 0 1 ${pt(a1)}" stroke="${gaugeColor(Math.min(1, Math.max(0, (i + 0.5) / n)), stops)}"/>`;
   }
   return out;
 }
-const GAUGE = `<svg class="gauge" viewBox="0 0 200 180" aria-hidden="true">
+const gaugeSvg = (theme) => `<svg class="gauge" viewBox="0 0 200 180" aria-hidden="true">
   <defs><mask id="gauge-mask" maskUnits="userSpaceOnUse" x="0" y="0" width="200" height="180">
     <path class="bar" data-gauge d="${ARC}" fill="none" stroke="#fff" stroke-width="10" stroke-linecap="round"
       stroke-dasharray="${ARC_LEN}" stroke-dashoffset="${ARC_LEN}" opacity="0"/>
   </mask></defs>
   <path class="track" d="${ARC}" fill="none" stroke-width="10" stroke-linecap="round"/>
   <path class="ticks" d="M 49.1 150.9 A 72 72 0 1 1 150.9 150.9" fill="none" stroke-width="5" stroke-dasharray="1.5 15.46"/>
-  <g class="bar-glow"><g mask="url(#gauge-mask)" fill="none" stroke-width="14">${gaugeSegments()}</g></g>
+  <g class="bar-glow"><g mask="url(#gauge-mask)" fill="none" stroke-width="14">${gaugeSegments(GAUGE_STOPS[theme])}</g></g>
 </svg>`;
 const UNLOCK_HOLD_MS = 1500;
 
@@ -56,7 +61,7 @@ export function mountRecord(root, { navigate }) {
         <span class="pill" data-pill="wake">Экран</span>
       </div>
       <div class="speed-block">
-        ${GAUGE}
+        ${gaugeSvg(currentTheme())}
         <div class="speed-inner">
           <div class="speed" data-speed>—</div>
           <div class="speed-unit" data-unit></div>
