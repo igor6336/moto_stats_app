@@ -491,7 +491,7 @@ form .btn + .btn { margin-top: 10px; }
 .tappable { cursor: pointer; }
 .avatar.tappable:active { transform: scale(.96); }
 .rider-map { height: 200px; margin-bottom: 12px; }
-.screen.rider .grid.stats { grid-template-columns: 1fr 1fr 1fr; }
+.screen.rider .grid.stats { grid-template-columns: 1fr 1fr 1fr; margin-bottom: 16px; }
 .screen.rider .stat { padding: 10px 10px 12px; }
 .screen.rider .stat .value { font-size: 16px; }
 .screen.rider .stat .label { font-size: 11px; }
