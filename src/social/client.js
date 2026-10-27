@@ -1,6 +1,7 @@
 // Supabase client, loaded on demand so the app starts and records rides
 // without it (and without network).
 import { SUPABASE_URL, SUPABASE_KEY, LOGIN_EMAIL_DOMAIN } from '../config.js';
+import { APP_VERSION } from '../version.js';
 
 export const socialConfigured = () => !!(SUPABASE_URL && SUPABASE_KEY);
 export const LOGIN_RE = /^[a-z0-9_]{3,24}$/;
@@ -41,6 +42,21 @@ export function onMeChange(fn) {
 function setMe(p) {
   me = p;
   listeners.forEach((fn) => fn(me));
+  if (p && reportedFor !== p.id) { reportedFor = p.id; reportAppVersion(p.id); }
+}
+
+// Records which app version the rider runs (visible in Supabase: profiles).
+// Best effort: a server without the columns or no network just skips it.
+let reportedFor = null;
+async function reportAppVersion(id) {
+  try {
+    const sb = await getClient();
+    const { error } = await sb.from('profiles')
+      .update({ app_version: APP_VERSION, app_seen_at: new Date().toISOString() }).eq('id', id);
+    if (error) console.warn('app version', error.message);
+  } catch (e) {
+    console.warn('app version', e);
+  }
 }
 
 // Translates Supabase errors into something a rider can act on.

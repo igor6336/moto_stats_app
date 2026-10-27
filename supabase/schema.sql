@@ -118,6 +118,11 @@ create index if not exists rides_user_started on public.rides (user_id, started_
 alter table public.profiles add column if not exists avatar_full text
   check (avatar_full is null or char_length(avatar_full) < 400000);
 
+-- App version the rider last opened, and when (added in app 0.9.1).
+alter table public.profiles add column if not exists app_version text
+  check (app_version is null or char_length(app_version) <= 20);
+alter table public.profiles add column if not exists app_seen_at timestamptz;
+
 -- Best acceleration times per ride, seconds (added in app 0.4.0).
 alter table public.rides add column if not exists accel_0_100_s real
   check (accel_0_100_s is null or accel_0_100_s between 2 and 60);
