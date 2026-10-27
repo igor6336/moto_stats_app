@@ -1,7 +1,8 @@
 import { getSettings, saveSettings, parseZones, DEFAULT_SETTINGS } from '../settings.js';
 import { exportBackup, importFile } from '../export.js';
 import { recoverInterrupted, isStandalone } from '../recorder.js';
-import { listRides, deleteSensorData, sensorBytes } from '../storage.js';
+import { listRides, sensorBytes } from '../storage.js';
+import { dropSensorData } from '../ridelean.js';
 import { fmtBytes } from '../format.js';
 import { APP_VERSION } from '../version.js';
 import { h, toast, exportButton } from '../ui.js';
@@ -84,7 +85,7 @@ export function mountSettings(root, { navigate }) {
     const rides = await oldRides();
     if (!confirm(`Удалить данные датчиков у ${rides.length} поездок старше ${KEEP_DAYS} дней? `
       + 'Маршруты, статистика и рейтинг останутся.')) return;
-    for (const r of rides) await deleteSensorData(r.id);
+    for (const r of rides) await dropSensorData(r);
     toast('Место освобождено');
     showFree();
     showStorage();

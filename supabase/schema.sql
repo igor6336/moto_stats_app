@@ -125,6 +125,11 @@ alter table public.rides add column if not exists accel_100_200_s real
   check (accel_100_200_s is null or accel_100_200_s between 2 and 60);
 alter table public.rides add column if not exists accel_0_200_s real
   check (accel_0_200_s is null or accel_0_200_s between 2 and 60);
+-- Best lean held 1.5 s per ride, degrees (added in app 0.9.0).
+alter table public.rides add column if not exists lean_left_deg real
+  check (lean_left_deg is null or lean_left_deg between 0 and 70);
+alter table public.rides add column if not exists lean_right_deg real
+  check (lean_right_deg is null or lean_right_deg between 0 and 70);
 
 -- --------------------------------------------------------------------- RLS
 alter table public.profiles enable row level security;

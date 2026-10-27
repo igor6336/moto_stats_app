@@ -9,9 +9,10 @@ export const CATEGORIES = [
   { id: 'a0_100', label: '0–100', kind: 'time', per: 'ride', field: 'accel_0_100_s', lower: true },
   { id: 'a100_200', label: '100–200', kind: 'time', per: 'ride', field: 'accel_100_200_s', lower: true },
   { id: 'a0_200', label: '0–200', kind: 'time', per: 'ride', field: 'accel_0_200_s', lower: true },
-  // Need the lean/wheelie algorithms (stage 3); shown with a notice until then.
-  { id: 'leanRight', label: 'Наклон вправо', kind: 'angle', per: 'ride', field: 'lean_right_deg', pending: true },
-  { id: 'leanLeft', label: 'Наклон влево', kind: 'angle', per: 'ride', field: 'lean_left_deg', pending: true },
+  // Lean: best of rides with a calibration (beta, stage 3).
+  { id: 'leanRight', label: 'Наклон вправо', kind: 'angle', per: 'ride', field: 'lean_right_deg' },
+  { id: 'leanLeft', label: 'Наклон влево', kind: 'angle', per: 'ride', field: 'lean_left_deg' },
+  // Needs the wheelie algorithm; shown with a notice until then.
   { id: 'wheelie', label: 'Стойка', kind: 'angle', per: 'ride', field: 'wheelie_deg', pending: true },
 ];
 

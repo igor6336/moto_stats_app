@@ -28,7 +28,7 @@ function statsGrid(s) {
     ${cell('Наклон влево', deg(s.leanLeft))}
     ${cell('Наклон вправо', deg(s.leanRight))}
   </div>
-  ${s.leanLeft || s.leanRight || s.wheelie ? '' : '<p class="hint">Наклон и стойка появятся после настройки алгоритма.</p>'}`;
+  ${s.leanLeft || s.leanRight ? '' : '<p class="hint">Наклон считается по поездкам с калибровкой перед стартом.</p>'}`;
 }
 
 export function mountRider(root, { params, navigate }) {

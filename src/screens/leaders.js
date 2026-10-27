@@ -54,8 +54,8 @@ export function mountLeaders(root, { navigate }) {
     const rows = computeLeaderboard(board.rides, category, period);
     const box = body.querySelector('[data-board]');
     if (cat.pending && !rows.length) {
-      box.innerHTML = `<div class="empty">Появится после настройки алгоритма наклона и стойки.<br>
-        Для этого нужны поездки на мотоцикле с калибровкой перед стартом.</div>`;
+      box.innerHTML = `<div class="empty">Появится после настройки алгоритма стойки.<br>
+        Для этого нужна поездка со стойкой и калибровкой перед стартом.</div>`;
       return;
     }
     if (!rows.length) { box.innerHTML = '<div class="empty">Нет поездок за этот период</div>'; return; }

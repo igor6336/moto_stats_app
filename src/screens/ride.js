@@ -1,4 +1,5 @@
-import { getRide, getGpsData, putRide, deleteRide, deleteSensorData, sensorBytes } from '../storage.js';
+import { getRide, getGpsData, putRide, deleteRide, sensorBytes } from '../storage.js';
+import { ensureLean, applyLean, dropSensorData } from '../ridelean.js';
 import { computeSummary, routeByZone } from '../algo/stats.js';
 import { exportRideRaw } from '../export.js';
 import { getSettings } from '../settings.js';
@@ -11,6 +12,13 @@ import { icon } from '../icons.js';
 import { getMe } from '../social/client.js';
 import { syncRides, deleteRemoteRide } from '../social/rides.js';
 
+function leanHint(ride) {
+  if (ride.lean?.reason === 'no-calibration') return 'Наклон не посчитан: перед поездкой не было калибровки. Откалибруйте телефон на креплении, мотоцикл ровно (не на подножке).';
+  if (!ride.lean && ride.sensorsDeleted) return 'Данные датчиков удалены до расчёта наклона.';
+  if (ride.lean?.reason === 'no-data') return 'Нет данных датчиков или телефон лежал плашмя: наклон не посчитать.';
+  return 'Наклон, удержанный 1,5 с и подтверждённый GPS: короткие пики не учитываются. Точность около ±5–8°. Стойка появится позже.';
+}
+
 export function mountRide(root, { params, navigate }) {
   const el = h('<section class="screen ride"><div class="loading">Загрузка…</div></section>');
   root.appendChild(el);
@@ -19,14 +27,15 @@ export function mountRide(root, { params, navigate }) {
   let alive = true;
 
   (async () => {
-    const ride = await getRide(params.id);
+    let ride = await getRide(params.id);
     if (!alive) return;
     if (!ride) { el.innerHTML = '<div class="empty">Поездка не найдена</div>'; return; }
+    ride = await ensureLean(ride);
     const { gps } = await getGpsData(ride.id);
     if (!alive) return;
     const zones = getSettings().zones;
     const durationS = ride.endedAt ? (ride.endedAt - ride.startedAt) / 1000 : undefined;
-    const s = computeSummary(gps, { zones, durationS });
+    const s = applyLean(computeSummary(gps, { zones, durationS }), ride);
     // Keep the stored summary in step with the current algorithm and zones.
     if (ride.status !== 'recording' && JSON.stringify(s) !== JSON.stringify(ride.summary)) {
       ride.summary = s;
@@ -79,12 +88,12 @@ export function mountRide(root, { params, navigate }) {
         ${[['0-100', '0–100 км/ч'], ['100-200', '100–200 км/ч'], ['0-200', '0–200 км/ч']].map(([k, label]) =>
           `<div><span>${label}</span><b>${s.accel?.[k] ? `${s.accel[k].toFixed(2)} с` : '—'}</b></div>`).join('')}
       </div>
-      <h2>Наклон и стойка</h2>
+      <h2>Наклон и стойка <span class="badge">бета</span></h2>
       <div class="kv">
         ${[['leanLeft', 'Наклон влево'], ['leanRight', 'Наклон вправо'], ['wheelie', 'Стойка']].map(([k, label]) =>
           `<div><span>${label}</span><b>${Number.isFinite(s[k]) ? `${Math.round(s[k])}°` : '—'}</b></div>`).join('')}
       </div>
-      <p class="hint">Появятся после настройки алгоритма наклона и стойки. Поездки с сохранёнными данными датчиков пересчитаются.</p>
+      <p class="hint">${leanHint(ride)}</p>
       <h2>Качество данных</h2>
       <div class="kv">
         <div><span>Точек GPS</span><b>${s.points} из ${gps.length}</b></div>
@@ -119,8 +128,8 @@ export function mountRide(root, { params, navigate }) {
     });
     el.querySelector('[data-drop-sensors]')?.addEventListener('click', async () => {
       if (!confirm(`Удалить данные датчиков (~${fmtBytes(sensorBytes(ride))})? Маршрут, статистика и место в рейтинге останутся, `
-        + 'но пересчитать по этой поездке наклон и уточнить разгоны будет нельзя.')) return;
-      await deleteSensorData(ride.id);
+        + 'но пересчитать наклон новой версией алгоритма будет нельзя.')) return;
+      await dropSensorData(ride);
       toast('Данные датчиков удалены');
       navigate(`#/ride/${ride.id}`);
     });

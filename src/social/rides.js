@@ -3,25 +3,29 @@ import { getClient, getMe } from './client.js';
 import { listRides, putRide, getGpsData } from '../storage.js';
 import { computeSummary, ALGO_VERSION } from '../algo/stats.js';
 import { getSettings } from '../settings.js';
+import { ensureLean, applyLean } from '../ridelean.js';
 
 const MIN_DISTANCE_M = 500; // skips test recordings at home
 
-const signature = (s) => `${s.algoVersion}:${Math.round(s.distance)}:${s.maxSpeed.toFixed(2)}:${JSON.stringify(s.accel || {})}`;
+const signature = (s) => `${s.algoVersion}:${Math.round(s.distance)}:${s.maxSpeed.toFixed(2)}:${JSON.stringify(s.accel || {})}:${s.leanLeft}:${s.leanRight}`;
 
 // Rides recorded before an algorithm update (e.g. without acceleration
 // times) get their summary recomputed from the stored GPS track.
 async function freshSummary(ride) {
-  if (ride.summary?.algoVersion === ALGO_VERSION) return ride.summary;
+  await ensureLean(ride);
+  if (ride.summary?.algoVersion === ALGO_VERSION) return applyLean(ride.summary, ride);
   const { gps } = await getGpsData(ride.id);
   ride.summary = computeSummary(gps, {
     zones: ride.settings?.zones || getSettings().zones,
     durationS: ride.endedAt ? (ride.endedAt - ride.startedAt) / 1000 : undefined,
   });
+  applyLean(ride.summary, ride);
   await putRide(ride);
   return ride.summary;
 }
 
 let accelColumns = true; // false if the server schema predates them
+let leanColumns = true;
 
 let syncing = null;
 
@@ -68,7 +72,18 @@ async function doSync() {
       row.accel_100_200_s = s.accel?.['100-200'] ?? null;
       row.accel_0_200_s = s.accel?.['0-200'] ?? null;
     }
+    if (leanColumns) {
+      row.lean_left_deg = s.leanLeft ?? null;
+      row.lean_right_deg = s.leanRight ?? null;
+    }
     let { error } = await sb.from('rides').upsert(row, { onConflict: 'user_id,local_id' });
+    if (error && /lean_/.test(error.message || '')) {
+      // Server not migrated yet: upload without lean, retry later.
+      leanColumns = false;
+      delete row.lean_left_deg; delete row.lean_right_deg;
+      ({ error } = await sb.from('rides').upsert(row, { onConflict: 'user_id,local_id' }));
+      if (!error) continue;
+    }
     if (error && /accel_/.test(error.message || '')) {
       // Server not migrated yet: upload without acceleration, retry later.
       accelColumns = false;
