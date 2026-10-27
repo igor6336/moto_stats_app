@@ -17,11 +17,12 @@
 // fully in memory), result() finishes with the GPS rows.
 import { G, M } from './schema.js';
 
-export const LEAN_VERSION = 1;
+export const LEAN_VERSION = 2;
 const BIN_S = 0.1;         // resampling step
 const HOLD_S = 1.5;        // a record must be held this long
 const MIN_KMH = 20;        // no records near standstill (foot down, stand)
 const MAX_LEAN = 65;       // more is a dropped or loose phone, not a corner
+const MIN_LEAN = 10;       // less is body roll or noise (a car gives 3-4), not a record
 const GPS_WINDOW = [-2, 3]; // s around the hold: GPS lags by 1-2 s
 const GPS_SHARE = 0.4;     // GPS must show at least this share of the lean
 const STRAIGHT_DEG = 3;    // GPS lean below this counts as riding straight
@@ -110,8 +111,8 @@ export class LeanAccumulator {
         best[side] = held;
       }
     }
-    const round = (x) => (x === null ? null : Math.round(x * 10) / 10);
-    return { v: LEAN_VERSION, right: round(best.right), left: round(best.left), bias: round(bias) };
+    const round = (x) => (x === null || x < MIN_LEAN ? null : Math.round(x * 10) / 10);
+    return { v: LEAN_VERSION, right: round(best.right), left: round(best.left), bias: Math.round(bias * 10) / 10 };
   }
 }
 

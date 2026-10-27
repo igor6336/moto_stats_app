@@ -64,3 +64,8 @@ test('no calibration or a phone lying flat gives nothing', () => {
   assert.equal(lean(r, null), null);
   assert.equal(bikeAxes([0, 0, -9.81]), null);
 });
+
+test('a few degrees of body roll (a car) is not a record', () => {
+  const at = (t) => (t >= 20 && t < 26 ? 4 : 0);
+  assert.equal(lean(ride(60, at)).right, null);
+});
