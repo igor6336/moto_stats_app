@@ -1,14 +1,79 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
-  <rect width="512" height="512" fill="#0b0d10"/>
-  <!-- gauge: centre (256, 286.7), r 174, from 150 deg to 390 deg; orange up to 300 deg -->
+  <defs><radialGradient id="glow" cx="50%" cy="40%" r="60%">
+    <stop offset="0" stop-color="#4f46e5" stop-opacity=".28"/><stop offset="1" stop-color="#4f46e5" stop-opacity="0"/>
+  </radialGradient></defs>
+  <rect width="512" height="512" fill="#07090c"/>
+  <rect width="512" height="512" fill="url(#glow)"/>
+  <!-- gauge: centre (256, 286.7), r 174, from 150 deg to 390 deg; filled up to
+       300 deg with the app's gradient (white, sky, blue, indigo, violet) drawn
+       as short segments so the colour follows the arc -->
   <g fill="none" stroke-width="36">
-    <path d="M 105.3 373.7 A 174 174 0 1 1 406.7 373.7" stroke="#2a313c"/>
-    <path d="M 105.3 373.7 A 174 174 0 0 1 343 136.0" stroke="#ff7a1a"/>
+    <path d="M 105.3 373.7 A 174 174 0 1 1 406.7 373.7" stroke="#22283a"/>
+    <path d="M 105.3 373.7 A 174 174 0 0 1 101.0 365.7" stroke="#fbfeff"/>
+    <path d="M 101.7 367.0 A 174 174 0 0 1 97.7 358.9" stroke="#f4fbff"/>
+    <path d="M 98.3 360.2 A 174 174 0 0 1 94.7 351.9" stroke="#edf9ff"/>
+    <path d="M 95.2 353.3 A 174 174 0 0 1 92.0 344.8" stroke="#e6f6fe"/>
+    <path d="M 92.5 346.2 A 174 174 0 0 1 89.6 337.6" stroke="#def4fe"/>
+    <path d="M 90.1 339.0 A 174 174 0 0 1 87.5 330.3" stroke="#d7f2fe"/>
+    <path d="M 87.9 331.7 A 174 174 0 0 1 85.8 322.9" stroke="#d0effe"/>
+    <path d="M 86.1 324.4 A 174 174 0 0 1 84.4 315.4" stroke="#c9edfe"/>
+    <path d="M 84.6 316.9 A 174 174 0 0 1 83.3 307.9" stroke="#c2eafe"/>
+    <path d="M 83.5 309.4 A 174 174 0 0 1 82.5 300.4" stroke="#bae8fd"/>
+    <path d="M 82.7 301.9 A 174 174 0 0 1 82.1 292.8" stroke="#b3e5fd"/>
+    <path d="M 82.2 294.3 A 174 174 0 0 1 82.0 285.2" stroke="#ace3fd"/>
+    <path d="M 82.0 286.7 A 174 174 0 0 1 82.2 277.6" stroke="#a5e0fd"/>
+    <path d="M 82.2 279.1 A 174 174 0 0 1 82.8 270.0" stroke="#9edefd"/>
+    <path d="M 82.7 271.5 A 174 174 0 0 1 83.7 262.5" stroke="#96dcfd"/>
+    <path d="M 83.5 264.0 A 174 174 0 0 1 84.9 255.0" stroke="#8fd9fc"/>
+    <path d="M 84.6 256.5 A 174 174 0 0 1 86.5 247.6" stroke="#88d7fc"/>
+    <path d="M 86.1 249.0 A 174 174 0 0 1 88.3 240.2" stroke="#81d4fc"/>
+    <path d="M 87.9 241.7 A 174 174 0 0 1 90.5 232.9" stroke="#7bd1fc"/>
+    <path d="M 90.1 234.4 A 174 174 0 0 1 93.0 225.8" stroke="#78ccfc"/>
+    <path d="M 92.5 227.2 A 174 174 0 0 1 95.8 218.7" stroke="#74c8fb"/>
+    <path d="M 95.2 220.1 A 174 174 0 0 1 99.0 211.8" stroke="#70c3fb"/>
+    <path d="M 98.3 213.2 A 174 174 0 0 1 102.4 205.0" stroke="#6cbffa"/>
+    <path d="M 101.7 206.4 A 174 174 0 0 1 106.1 198.4" stroke="#69bafa"/>
+    <path d="M 105.3 199.7 A 174 174 0 0 1 110.1 191.9" stroke="#65b6fa"/>
+    <path d="M 109.2 193.2 A 174 174 0 0 1 114.3 185.7" stroke="#62b1fa"/>
+    <path d="M 113.5 186.9 A 174 174 0 0 1 118.9 179.6" stroke="#5eadf9"/>
+    <path d="M 118.0 180.8 A 174 174 0 0 1 123.7 173.7" stroke="#5aa8f9"/>
+    <path d="M 122.7 174.9 A 174 174 0 0 1 128.7 168.0" stroke="#56a4f8"/>
+    <path d="M 127.7 169.1 A 174 174 0 0 1 134.0 162.6" stroke="#539ff8"/>
+    <path d="M 133.0 163.7 A 174 174 0 0 1 139.6 157.4" stroke="#4f9bf8"/>
+    <path d="M 138.4 158.4 A 174 174 0 0 1 145.3 152.4" stroke="#4c96f8"/>
+    <path d="M 144.2 153.4 A 174 174 0 0 1 151.3 147.7" stroke="#4892f7"/>
+    <path d="M 150.1 148.7 A 174 174 0 0 1 157.4 143.3" stroke="#448df7"/>
+    <path d="M 156.2 144.2 A 174 174 0 0 1 163.8 139.1" stroke="#4089f6"/>
+    <path d="M 162.5 139.9 A 174 174 0 0 1 170.3 135.3" stroke="#3d84f6"/>
+    <path d="M 169.0 136.0 A 174 174 0 0 1 177.0 131.7" stroke="#3c80f5"/>
+    <path d="M 175.7 132.4 A 174 174 0 0 1 183.8 128.4" stroke="#3d7bf4"/>
+    <path d="M 182.5 129.0 A 174 174 0 0 1 190.8 125.4" stroke="#3f77f3"/>
+    <path d="M 189.4 125.9 A 174 174 0 0 1 197.9 122.7" stroke="#4072f1"/>
+    <path d="M 196.5 123.2 A 174 174 0 0 1 205.1 120.3" stroke="#426ef0"/>
+    <path d="M 203.7 120.8 A 174 174 0 0 1 212.4 118.2" stroke="#4369ef"/>
+    <path d="M 211.0 118.6 A 174 174 0 0 1 219.8 116.5" stroke="#4564ee"/>
+    <path d="M 218.3 116.8 A 174 174 0 0 1 227.3 115.1" stroke="#4660ec"/>
+    <path d="M 225.8 115.3 A 174 174 0 0 1 234.8 114.0" stroke="#485beb"/>
+    <path d="M 233.3 114.2 A 174 174 0 0 1 242.3 113.2" stroke="#4957ea"/>
+    <path d="M 240.8 113.4 A 174 174 0 0 1 249.9 112.8" stroke="#4b52e8"/>
+    <path d="M 248.4 112.9 A 174 174 0 0 1 257.5 112.7" stroke="#4c4ee7"/>
+    <path d="M 256.0 112.7 A 174 174 0 0 1 265.1 112.9" stroke="#4e49e6"/>
+    <path d="M 263.6 112.9 A 174 174 0 0 1 272.7 113.5" stroke="#5045e5"/>
+    <path d="M 271.2 113.4 A 174 174 0 0 1 280.2 114.4" stroke="#5342e4"/>
+    <path d="M 278.7 114.2 A 174 174 0 0 1 287.7 115.6" stroke="#5540e2"/>
+    <path d="M 286.2 115.3 A 174 174 0 0 1 295.1 117.2" stroke="#583de1"/>
+    <path d="M 293.7 116.8 A 174 174 0 0 1 302.5 119.0" stroke="#5b3ae0"/>
+    <path d="M 301.0 118.6 A 174 174 0 0 1 309.8 121.2" stroke="#5e37df"/>
+    <path d="M 308.3 120.8 A 174 174 0 0 1 316.9 123.7" stroke="#6134de"/>
+    <path d="M 315.5 123.2 A 174 174 0 0 1 324.0 126.5" stroke="#6332dd"/>
+    <path d="M 322.6 125.9 A 174 174 0 0 1 330.9 129.7" stroke="#662fdc"/>
+    <path d="M 329.5 129.0 A 174 174 0 0 1 337.7 133.1" stroke="#692cdb"/>
+    <path d="M 336.3 132.4 A 174 174 0 0 1 343.0 136.0" stroke="#6c29da"/>
   </g>
   <!-- sport bike, front view, no rider; leans 30 deg along the old needle.
        Drawn upright with the contact patch at the origin. -->
   <g transform="translate(240 352) rotate(30) scale(1.85)">
-    <g fill="#eef1f5" stroke="#0b0d10" stroke-width="2" stroke-linejoin="round">
+    <g fill="#eef1f5" stroke="#07090c" stroke-width="2" stroke-linejoin="round">
       <!-- mirrors -->
       <path d="M 21 -91 L 30 -95 Q 42 -97 46 -92 Q 45 -85 35 -85 L 23 -86 Z"/>
       <path d="M -21 -91 L -30 -95 Q -42 -97 -46 -92 Q -45 -85 -35 -85 L -23 -86 Z"/>
@@ -20,7 +85,7 @@
       <!-- upper fairing (nose) -->
       <path d="M 0 -103 Q 16 -103 22 -95 L 26 -80 L 23 -66 Q 12 -59 0 -57 Q -12 -59 -23 -66 L -26 -80 L -22 -95 Q -16 -103 0 -103 Z"/>
     </g>
-    <g fill="#0b0d10">
+    <g fill="#07090c">
       <!-- screen line -->
       <path d="M -22 -92 L 0 -87.5 L 22 -92 L 22 -89.6 L 0 -85 L -22 -89.6 Z"/>
       <!-- headlights -->
@@ -30,11 +95,11 @@
       <path d="M -15 -13 L -17 -50 Q 0 -57 17 -50 L 15 -13 Z"/>
     </g>
     <!-- double side lines -->
-    <g fill="none" stroke="#0b0d10" stroke-width="1.6" stroke-linecap="round">
+    <g fill="none" stroke="#07090c" stroke-width="1.6" stroke-linecap="round">
       <path d="M -21.5 -60 Q -25 -36 -15.5 -16"/>
       <path d="M 21.5 -60 Q 25 -36 15.5 -16"/>
     </g>
-    <g fill="#eef1f5" stroke="#0b0d10" stroke-width="1.6" stroke-linejoin="round">
+    <g fill="#eef1f5" stroke="#07090c" stroke-width="1.6" stroke-linejoin="round">
       <!-- fork caps -->
       <rect x="-13" y="-51" width="5" height="7" rx="1.5"/>
       <rect x="8" y="-51" width="5" height="7" rx="1.5"/>
