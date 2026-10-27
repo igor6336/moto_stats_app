@@ -169,6 +169,10 @@
 /* PALETTES:end */
 
 * { box-sizing: border-box; }
+/* Gradients start at the outer edge: with the default padding-box origin a
+   gradient under a transparent border repeats, and the opposite end's
+   colour shows as a thin line along the edges. */
+*, *::before, *::after { background-origin: border-box !important; } /* beats the `background` shorthand */
 
 html, body {
   margin: 0;
