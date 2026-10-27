@@ -235,7 +235,8 @@ h2 {
 .gauge { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
 .gauge .track { stroke: rgba(255, 255, 255, .07); }
 .gauge .ticks { stroke: rgba(255, 255, 255, .16); }
-.gauge .bar { transition: stroke-dashoffset .8s var(--ease); filter: drop-shadow(0 0 10px rgba(255, 106, 19, .55)); }
+.gauge .bar { transition: stroke-dashoffset .8s var(--ease); }
+.gauge .bar-glow { filter: drop-shadow(0 0 10px rgba(96, 165, 250, .5)); }
 .speed-inner { position: relative; text-align: center; margin-top: 6%; }
 .speed {
   font: 700 min(19vw, 84px)/1 var(--display); letter-spacing: -.05em;
