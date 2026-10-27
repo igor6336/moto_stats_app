@@ -78,3 +78,16 @@ test('implausibly fast run is rejected', () => {
   // 0-100 in ~1.4 s: 20 m/s2, not a motorcycle
   assert.equal(computeSummary(track((t) => Math.min(kmh(120), 20 * t), 10)).accel['0-100'], null);
 });
+
+test('GPS catching up after a dropout does not count as acceleration', () => {
+  // 0 -> 56 km/h in 8 s, signal degrades, then speed snaps to 148 km/h in 1 s
+  const rows = track((t) => (t < 2 ? 0 : t < 10 ? kmh(7 * (t - 2)) : kmh(Math.min(160, 148 + (t - 11) * 3))), 25);
+  rows.find((r) => r[0] === 11000)[2] += 0.0002;
+  assert.equal(computeSummary(rows).accel['0-100'], null);
+});
+
+test('a degraded fix inside the run breaks it', () => {
+  const rows = track((t) => (t < 2 ? 0 : Math.min(kmh(120), kmh(15 * (t - 2)))), 20);
+  rows[5][4] = 20; // kept by the track filter (<= 25 m), too poor for timing
+  assert.equal(computeSummary(rows).accel['0-100'], null);
+});

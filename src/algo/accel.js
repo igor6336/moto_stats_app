@@ -16,6 +16,11 @@ export const RUNS = [
 
 const START_KMH = 2;  // a standing start begins when speed rises through this
 const MAX_DT = 2.5;   // s: a longer gap between fixes breaks the run
+// After a short signal loss iOS snaps the speed to the real value (seen:
+// 56 -> 148 km/h in 1 s). No bike accelerates faster than ~1.2 g, so a
+// bigger step, or a fix degraded beyond this accuracy, breaks the run.
+const MAX_STEP = 54;  // km/h per s, ~1.5 g
+const MAX_ACC = 15;   // m
 
 // Time when speed crossed `level` between two fixes.
 function cross(t0, v0, t1, v1, level) {
@@ -25,16 +30,18 @@ function cross(t0, v0, t1, v1, level) {
 export function bestAccelerations(track) {
   const { n, t, brk } = track;
   const v = track.speed.map((s) => s * 3.6);
+  const bad = (j) => brk[j] || t[j] - t[j - 1] > MAX_DT || track.acc?.[j] > MAX_ACC
+    || Math.abs(v[j] - v[j - 1]) / (t[j] - t[j - 1]) > MAX_STEP;
   const out = {};
   for (const run of RUNS) {
     const startLevel = run.from === 0 ? START_KMH : run.from;
     let best = null;
     for (let i = 1; i < n; i++) {
-      if (brk[i] || t[i] - t[i - 1] > MAX_DT) continue;
+      if (bad(i)) continue;
       if (!(v[i - 1] < startLevel && v[i] >= startLevel)) continue;
       const tStart = cross(t[i - 1], v[i - 1], t[i], v[i], startLevel);
       for (let j = i; j < n; j++) {
-        if (j > i && (brk[j] || t[j] - t[j - 1] > MAX_DT)) break;
+        if (j > i && bad(j)) break;
         if (v[j] < startLevel) break;
         if (t[j] - tStart > run.max) break;
         if (v[j] >= run.to) {

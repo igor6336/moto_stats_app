@@ -5,7 +5,7 @@ import { haversine } from './geo.js';
 import { bestAccelerations } from './accel.js';
 import { coarseRuns } from './coarse.js';
 
-export const ALGO_VERSION = 5;
+export const ALGO_VERSION = 6;
 
 export const DEFAULTS = Object.freeze({
   maxAccuracy: 25,    // m: fixes worse than this are dropped
