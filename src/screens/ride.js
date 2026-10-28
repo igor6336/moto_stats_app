@@ -91,8 +91,10 @@ export function mountRide(root, { params, navigate }) {
       drawChart(ride, s, gps);
       const fresh = rideRecords({ ...ride, summary: s }, await listRides());
       if (!alive) return;
+      // Update the banner in place: replacing it would cut its celebration.
       const banner = el.querySelector('.record-banner');
-      if (banner) banner.outerHTML = recordBanner(fresh);
+      if (banner && fresh.length) banner.querySelector(':scope > div').innerHTML = h(recordBanner(fresh)).querySelector(':scope > div').innerHTML;
+      else if (banner) banner.remove();
       else if (fresh.length) el.querySelector('.ride-head').insertAdjacentHTML('afterbegin', recordBanner(fresh));
     }
   })().catch((e) => { el.innerHTML = `<div class="empty">Ошибка: ${escapeHtml(e.message || e)}</div>`; });
