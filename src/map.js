@@ -18,6 +18,8 @@ let yandexPromise = null;
 const START_HTML = '<div class="rmark start"><i></i><span>Старт</span></div>';
 const FINISH_HTML = '<div class="rmark finish"><i></i><span>Финиш</span></div>';
 
+const CURSOR_HTML = '<div class="cmark"></div>';
+
 export const ZONE_COLORS = ['#4aa3ff', '#3fd28b', '#c6e04a', '#ffc93d', '#ff8a3d', '#ff4d4d', '#e04ad6', '#a46bff'];
 export const zoneColor = (i) => ZONE_COLORS[i % ZONE_COLORS.length];
 // Approximate part of a route (coarse fixes under GPS jamming): grey dashes.
@@ -176,7 +178,15 @@ export async function drawRoute(container, runs) {
     map.addMarker(all[0][0], all[0][1], START_HTML);
     map.addMarker(all.at(-1)[0], all.at(-1)[1], FINISH_HTML);
     map.fit(all, 20);
-    return () => map.destroy();
+    const dispose = () => map.destroy();
+    // Position marker driven by the ride chart; null hides it.
+    let cursor = null;
+    dispose.cursor = (p) => {
+      if (!p) { cursor?.remove(); cursor = null; return; }
+      if (cursor) cursor.update(p[0], p[1]);
+      else cursor = map.addMarker(p[0], p[1], CURSOR_HTML);
+    };
+    return dispose;
   } catch {
     drawSvg(container, runs, all);
     return () => {};

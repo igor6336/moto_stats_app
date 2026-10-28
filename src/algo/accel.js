@@ -28,6 +28,13 @@ function cross(t0, v0, t1, v1, level) {
 }
 
 export function bestAccelerations(track) {
+  const out = {};
+  for (const [id, span] of Object.entries(bestAccelerationSpans(track))) out[id] = span ? Math.round(span.time * 100) / 100 : null;
+  return out;
+}
+
+// The best run of each kind with its start and end time (s), for charts.
+export function bestAccelerationSpans(track) {
   const { n, t, brk } = track;
   const v = track.speed.map((s) => s * 3.6);
   const bad = (j) => brk[j] || t[j] - t[j - 1] > MAX_DT || track.acc?.[j] > MAX_ACC
@@ -35,7 +42,7 @@ export function bestAccelerations(track) {
   const out = {};
   for (const run of RUNS) {
     const startLevel = run.from === 0 ? START_KMH : run.from;
-    let best = null;
+    let best = null, span = null;
     for (let i = 1; i < n; i++) {
       if (bad(i)) continue;
       if (!(v[i - 1] < startLevel && v[i] >= startLevel)) continue;
@@ -47,12 +54,12 @@ export function bestAccelerations(track) {
         if (v[j] >= run.to) {
           const tEnd = j === i ? cross(t[i - 1], v[i - 1], t[i], v[i], run.to) : cross(t[j - 1], v[j - 1], t[j], v[j], run.to);
           const time = tEnd - tStart;
-          if (time >= run.min && time <= run.max && (best === null || time < best)) best = time;
+          if (time >= run.min && time <= run.max && (best === null || time < best)) { best = time; span = { t0: tStart, t1: tEnd, time }; }
           break;
         }
       }
     }
-    out[run.id] = best === null ? null : Math.round(best * 100) / 100;
+    out[run.id] = span;
   }
   return out;
 }

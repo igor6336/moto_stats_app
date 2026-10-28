@@ -46,6 +46,8 @@ const SHELL = [
   './src/theme.js',
   './src/theme-boot.js',
   './src/palettes.js',
+  './src/chart.js',
+  './src/records.js',
   './src/config.js',
   './src/social/client.js',
   './src/social/friends.js',

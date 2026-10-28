@@ -1,12 +1,15 @@
-import { getRide, getGpsData, putRide, deleteRide, sensorBytes } from '../storage.js';
+import { getRide, getGpsData, putRide, deleteRide, sensorBytes, listRides } from '../storage.js';
+import { rideRecords } from '../records.js';
 import { ensureLean, applyLean, dropSensorData } from '../ridelean.js';
-import { computeSummary, routeByZone } from '../algo/stats.js';
+import { computeSummary, routeByZone, prepareTrack, approxSpans } from '../algo/stats.js';
+import { bestAccelerationSpans } from '../algo/accel.js';
+import { renderRideChart } from '../chart.js';
 import { exportRideRaw } from '../export.js';
 import { getSettings } from '../settings.js';
 import { drawRoute, zoneColor, APPROX_COLOR } from '../map.js';
 import { openFullscreenMap, expandable } from '../fullmap.js';
 import { escapeHtml as esc } from '../format.js';
-import { fmtSpeed, speedUnit, fmtDistance, fmtDuration, fmtDate, zoneBound, escapeHtml, fmtBytes } from '../format.js';
+import { fmtSpeed, speedValue, speedUnit, fmtDistance, fmtDuration, fmtDate, zoneBound, escapeHtml, fmtBytes } from '../format.js';
 import { h, toast, exportButton } from '../ui.js';
 import { icon } from '../icons.js';
 import { getMe } from '../social/client.js';
@@ -44,10 +47,12 @@ export function mountRide(root, { params, navigate }) {
       ride.summary = s;
       putRide(ride);
     }
-    render(ride, s, gps, zones);
+    const records = rideRecords({ ...ride, summary: s }, await listRides());
+    if (!alive) return;
+    render(ride, s, gps, zones, records);
   })().catch((e) => { el.innerHTML = `<div class="empty">Ошибка: ${escapeHtml(e.message || e)}</div>`; });
 
-  function render(ride, s, gps, zones) {
+  function render(ride, s, gps, zones, records = []) {
     const u = speedUnit();
     const maxZone = Math.max(1e-9, ...s.zones.map((z) => z.time));
     const zoneRows = s.zones.map((z, i) => `
@@ -66,6 +71,8 @@ export function mountRide(root, { params, navigate }) {
         <button class="btn ghost back" data-back>${icon('chevron-left')}История</button>
         <h1>${fmtDate(ride.startedAt)}</h1>
         ${ride.status === 'interrupted' ? '<div class="badge warn">Запись прервана, сохранено до последнего сброса</div>' : ''}
+        ${records.length ? `<div class="record-banner">${icon('trophy')}<div><b>${records.length > 1 ? 'Личные рекорды' : 'Личный рекорд'}</b>
+          <span>${records.map((r) => `${esc(r.metric.label)} <b>${esc(r.metric.fmt(r.value))}</b>`).join(' · ')}</span></div></div>` : ''}
         ${s.duration > 60 && (s.approxTime || 0) / s.duration > 0.1 ? `<div class="banner warn">
           ${fmtDuration(s.approxTime)} из ${fmtDuration(s.duration)} со слабым GPS (глушение, туннели). Маршрут там
           приблизительный (пунктир на карте), дистанция примерная, скорость и разгоны за этот отрезок не считаются.</div>` : ''}
@@ -84,6 +91,9 @@ export function mountRide(root, { params, navigate }) {
         <div class="stat"><div class="label">${icon('timer')}В движении</div><div class="value">${fmtDuration(s.movingTime)}</div></div>
         <div class="stat"><div class="label">${icon('square')}Остановки</div><div class="value">${fmtDuration(s.stoppedTime)}</div></div>
       </div>
+      <h2>Скорость${ride.lean?.series ? ' и наклон' : ''}</h2>
+      <div class="ride-chart" data-chart></div>
+      <p class="hint">Проведите пальцем по графику: точка на карте покажет, где это было.</p>
       <h2>Зоны скорости, ${u}</h2>
       <div class="zones">${zoneRows}</div>
       <h2>Разгоны (по GPS, лучшее за поездку)</h2>
@@ -153,6 +163,7 @@ export function mountRide(root, { params, navigate }) {
     drawRoute(mapBox, runs).then((d) => {
       if (alive) disposeMap = d; else d();
     });
+    drawChart(ride, s, gps);
     const legend = s.zones.map((z, i) => ({
       color: zoneColor(i),
       label: z.to === null ? `${zoneBound(z.from)}+` : `${zoneBound(z.from)}–${zoneBound(z.to)}`,
@@ -171,6 +182,33 @@ export function mountRide(root, { params, navigate }) {
           <span class="ml-time">${fmtDuration(s.approxTime)}</span>
         </div>` : ''}</div>`;
     expandable(mapBox, () => { closeFullscreen = openFullscreenMap((c) => drawRoute(c, runs), legendHtml); }, { tap: true });
+  }
+
+  function drawChart(ride, s, gps) {
+    const tr = prepareTrack(gps);
+    const segments = [];
+    let seg = [];
+    for (let i = 0; i < tr.n; i++) {
+      if (i && (tr.brk[i] || tr.t[i] - tr.t[i - 1] > 30)) { segments.push(seg); seg = []; }
+      seg.push({ t: tr.t[i], v: speedValue(tr.smooth[i]) });
+    }
+    segments.push(seg);
+    // Map position for a chart time: the nearest precise fix within 3 s.
+    const posAt = (t) => {
+      let lo = 0, hi = tr.n - 1;
+      if (hi < 0) return null;
+      while (hi - lo > 1) { const m = (lo + hi) >> 1; if (tr.t[m] < t) lo = m; else hi = m; }
+      const i = Math.abs(tr.t[lo] - t) < Math.abs(tr.t[hi] - t) ? lo : hi;
+      return Math.abs(tr.t[i] - t) <= 3 ? [tr.lat[i], tr.lon[i]] : null;
+    };
+    renderRideChart(el.querySelector('[data-chart]'), {
+      segments,
+      approx: approxSpans(gps),
+      lean: ride.lean?.series || null,
+      accel: bestAccelerationSpans(tr),
+      max: Number.isFinite(s.maxSpeedT) && s.maxSpeed > 0 ? { t: s.maxSpeedT, v: speedValue(s.maxSpeed) } : null,
+      unit: speedUnit(),
+    }, { onScrub: (t) => disposeMap.cursor?.(t === null ? null : posAt(t)) });
   }
 
   return () => { alive = false; disposeMap(); closeFullscreen(); };

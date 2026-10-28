@@ -1,4 +1,5 @@
 import { listRides, getGpsData, deleteRide } from '../storage.js';
+import { computeRecords, RECORD_METRICS } from '../records.js';
 import { prepareTrack } from '../algo/stats.js';
 import { routeThumb } from '../map.js';
 import { getMe } from '../social/client.js';
@@ -10,6 +11,7 @@ import { h, toast } from '../ui.js';
 export function mountHistory(root, { navigate }) {
   const el = h(`<section class="screen history">
     <div class="title-row"><h1>История</h1><button class="btn small ghost" data-select hidden>Выбрать</button></div>
+    <div data-records></div>
     <div class="list" data-list><div class="loading">Загрузка</div></div>
   </section>`);
   root.appendChild(el);
@@ -91,7 +93,20 @@ export function mountHistory(root, { navigate }) {
     stopSelecting();
   }
 
+  function renderRecords() {
+    const box = el.querySelector('[data-records]');
+    const rec = computeRecords(rides);
+    const items = RECORD_METRICS.filter((m) => rec[m.id]);
+    box.innerHTML = items.length && !selecting ? `<div class="records">
+      <div class="records-title">${icon('trophy')}Личные рекорды</div>
+      <div class="records-grid">${items.map((m) => `<button class="rec" data-ride="${rec[m.id].ride.id}">
+        <span>${m.label}</span><b>${m.fmt(rec[m.id].value)}</b><small>${new Date(rec[m.id].ride.startedAt).toLocaleDateString('ru-RU')}</small>
+      </button>`).join('')}</div></div>` : '';
+    box.querySelectorAll('[data-ride]').forEach((b) => b.addEventListener('click', () => navigate(`#/ride/${b.dataset.ride}`)));
+  }
+
   function render() {
+    renderRecords();
     const list = el.querySelector('[data-list]');
     selectBtn.hidden = !selectable().length;
     if (!rides.length) {

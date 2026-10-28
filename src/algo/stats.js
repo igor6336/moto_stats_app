@@ -162,6 +162,12 @@ export function computeSummary(rows, opts = {}) {
   return s;
 }
 
+// Time spans [t0, t1] (s) of the approximate route (weak GPS), for charts.
+export function approxSpans(rows, opts = {}) {
+  const o = { ...DEFAULTS, ...opts };
+  return coarseRuns(rows, prepareTrack(rows, o), o).map((r) => [r.t0, r.t1]);
+}
+
 // Splits the route into runs of the same speed zone, for colouring the map,
 // plus approximate runs (approx: true) from coarse fixes. Runs are in time
 // order, so the first point is the start and the last one the finish.

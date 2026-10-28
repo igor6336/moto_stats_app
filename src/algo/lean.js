@@ -17,7 +17,7 @@
 // fully in memory), result() finishes with the GPS rows.
 import { G, M } from './schema.js';
 
-export const LEAN_VERSION = 3;
+export const LEAN_VERSION = 4;
 const BIN_S = 0.1;         // resampling step
 const HOLD_S = 1.5;        // a record must be held this long
 const MIN_KMH = 20;        // no records near standstill (foot down, stand)
@@ -136,8 +136,32 @@ export class LeanAccumulator {
       }
     }
     const round = (x) => (x === null || x < MIN_LEAN ? null : Math.round(x * 10) / 10);
-    return { v: LEAN_VERSION, right: round(best.right), left: round(best.left), bias: Math.round(bias * 10) / 10, reference };
+    return { v: LEAN_VERSION, right: round(best.right), left: round(best.left), bias: Math.round(bias * 10) / 10, reference,
+      series: leanSeries(leanAt, bias) };
   }
+}
+
+// Lean over time for the ride chart, SERIES_S apart, right positive, whole
+// degrees; null where sensor data is missing. Kept on the ride (a few KB),
+// so the chart survives deleting the raw sensor data.
+const SERIES_S = 0.5;
+function leanSeries(leanAt, bias) {
+  const per = Math.round(SERIES_S / BIN_S);
+  const groups = new Map();
+  for (const [b, l] of leanAt) {
+    const k = Math.floor(b / per);
+    const g = groups.get(k);
+    if (g) { g[0] += l; g[1]++; } else groups.set(k, [l, 1]);
+  }
+  const keys = [...groups.keys()];
+  if (!keys.length) return null;
+  const k0 = Math.min(...keys), k1 = Math.max(...keys);
+  const v = [];
+  for (let k = k0; k <= k1; k++) {
+    const g = groups.get(k);
+    v.push(g ? Math.round(g[0] / g[1] - bias) : null);
+  }
+  return { t0: k0 * SERIES_S, dt: SERIES_S, v };
 }
 
 // Lean the GPS track implies: atan(v * yaw rate / g), from consecutive
