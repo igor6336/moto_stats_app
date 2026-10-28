@@ -12,7 +12,7 @@ const DISPLAY = "'Unbounded', 'Manrope', sans-serif", TEXT = "'Manrope', sans-se
 // Yandex maps use the ellipsoidal Mercator (EPSG:3395), not Web Mercator:
 // with the wrong one the route drifts off the roads at Moscow latitudes.
 const E = 0.0818191908426;
-const SCALE = 2; // Static API scale: 2x pixels for a sharp card
+const SCALE = 2; // Static API scale: zooms the content 2x, so labels stay readable on the card
 const worldPx = (z) => 256 * SCALE * 2 ** z;
 const projX = (lon, z) => ((lon + 180) / 360) * worldPx(z);
 const projY = (lat, z) => {
@@ -32,11 +32,28 @@ function loadImage(src, ms = 8000) {
   });
 }
 
+// Inverse of projY: latitude for a pixel row (iterative, converges fast).
+function unprojY(py, z) {
+  const t = Math.exp(-(0.5 - py / worldPx(z)) * 2 * Math.PI);
+  let f = Math.PI / 2 - 2 * Math.atan(t);
+  for (let i = 0; i < 6; i++) {
+    const es = E * Math.sin(f);
+    f = Math.PI / 2 - 2 * Math.atan(t * ((1 - es) / (1 + es)) ** (E / 2));
+  }
+  return (f * 180) / Math.PI;
+}
+const unprojX = (px, z) => (px / worldPx(z)) * 360 - 180;
+
 // Dark Yandex map (Static API) with the route fitted in the panel; returns
 // the projection. Without network or a key the panel stays plain.
+//
+// One image is at most 650x450, so the panel is four overlapping ones. In
+// the order drawn, each later image covers the logo strip at the bottom of
+// an earlier one; the Yandex logo and copyright of the last image stay
+// visible in the bottom right corner, as the terms require.
+const PIECE = [650, 450];
 async function drawMap(g, panel, pts) {
   const lats = pts.map((p) => p[0]), lons = pts.map((p) => p[1]);
-  const lat0 = (Math.min(...lats) + Math.max(...lats)) / 2, lon0 = (Math.min(...lons) + Math.max(...lons)) / 2;
   const pad = 150;
   let z = 18;
   for (; z > 3; z--) {
@@ -44,22 +61,31 @@ async function drawMap(g, panel, pts) {
     const h = projY(Math.min(...lats), z) - projY(Math.max(...lats), z);
     if (w <= panel.w - 2 * pad && h <= panel.h - 2 * pad) break;
   }
-  const cx = projX(lon0, z), cy = projY(lat0, z);
-  const xy = (p) => [panel.x + panel.w / 2 + projX(p[1], z) - cx, panel.y + panel.h / 2 + projY(p[0], z) - cy];
+  const cx = (projX(Math.max(...lons), z) + projX(Math.min(...lons), z)) / 2;
+  const cy = (projY(Math.max(...lats), z) + projY(Math.min(...lats), z)) / 2;
+  // World pixel of the panel's top-left corner.
+  const wx0 = cx - panel.w / 2, wy0 = cy - panel.h / 2;
+  const xy = (p) => [panel.x + projX(p[1], z) - wx0, panel.y + projY(p[0], z) - wy0];
 
-  const size = `${Math.round(panel.w / SCALE)},${Math.round(panel.h / SCALE)}`;
-  const img = YANDEX_STATIC_KEY ? await loadImage(`https://static-maps.yandex.ru/v1?ll=${lon0.toFixed(6)},${lat0.toFixed(6)}`
-    + `&z=${z}&size=${size}&scale=${SCALE}&theme=dark&lang=ru_RU&apikey=${YANDEX_STATIC_KEY}`) : null;
+  const [pw, ph] = PIECE;
+  const pieces = [[0, 0], [panel.w - pw, 0], [0, panel.h - ph], [panel.w - pw, panel.h - ph]];
+  const imgs = YANDEX_STATIC_KEY ? await Promise.all(pieces.map(([dx, dy]) => {
+    const lon = unprojX(wx0 + dx + pw / 2, z), lat = unprojY(wy0 + dy + ph / 2, z);
+    return loadImage(`https://static-maps.yandex.ru/v1?ll=${lon.toFixed(6)},${lat.toFixed(6)}&z=${z}`
+      + `&size=${pw},${ph}&scale=${SCALE}&theme=dark&lang=ru_RU&apikey=${YANDEX_STATIC_KEY}`);
+  })) : [];
   g.save();
-  roundRect(g, panel.x, panel.y, panel.w, panel.h, 44);
+  roundRect(g, panel.x, panel.y, panel.w, panel.h, 26);
   g.clip();
   g.fillStyle = '#0e1116';
   g.fillRect(panel.x, panel.y, panel.w, panel.h);
-  // Drawn as delivered: the Yandex logo and copyright must stay visible.
-  if (img) g.drawImage(img, panel.x, panel.y, panel.w, panel.h);
+  // All four or none: a partial map would show a hole or a stray logo.
+  if (imgs.length && imgs.every(Boolean)) {
+    imgs.forEach((img, i) => g.drawImage(img, panel.x + pieces[i][0], panel.y + pieces[i][1], pw, ph));
+  }
   g.restore();
   g.strokeStyle = 'rgba(255,255,255,.08)'; g.lineWidth = 2;
-  roundRect(g, panel.x, panel.y, panel.w, panel.h, 44); g.stroke();
+  roundRect(g, panel.x, panel.y, panel.w, panel.h, 26); g.stroke();
   return xy;
 }
 
@@ -117,7 +143,7 @@ export async function rideCard({ ride, s, runs, maxPos = null, me = null }) {
   // Route on the map.
   const pts = runs.flatMap((r) => r.coords);
   if (pts.length > 1) {
-    const xy = await drawMap(g, { x: 60, y: 310, w: W - 120, h: 880 }, pts);
+    const xy = await drawMap(g, { x: 60, y: 310, w: W - 120, h: 860 }, pts);
     g.lineCap = 'round'; g.lineJoin = 'round';
     // Dark outline under the whole route keeps it readable over the map.
     g.beginPath();
