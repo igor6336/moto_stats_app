@@ -757,3 +757,13 @@ form .btn + .btn { margin-top: 10px; }
 .rec b { color: var(--text); font: 800 15px var(--display); white-space: nowrap; }
 .rec span { font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .rec small { color: var(--faint); font-size: 11px; }
+
+/* ------------------------------------------------------------ share card */
+.share-view {
+  position: fixed; inset: 0; z-index: 160; background: rgba(0, 0, 0, .92); display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 18px; padding: calc(env(safe-area-inset-top) + 16px) 16px calc(env(safe-area-inset-bottom) + 16px);
+  animation: fade .2s ease-out;
+}
+.share-view img { max-width: 100%; max-height: calc(100% - 90px); border-radius: 18px; box-shadow: 0 20px 60px rgba(0, 0, 0, .6); animation: zoom-in .3s var(--ease); }
+.share-actions { display: flex; gap: 10px; width: 100%; max-width: 420px; }
+.share-actions .btn { flex: 1; }

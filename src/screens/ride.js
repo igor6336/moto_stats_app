@@ -4,6 +4,7 @@ import { ensureLean, applyLean, dropSensorData } from '../ridelean.js';
 import { computeSummary, routeByZone, prepareTrack, approxSpans } from '../algo/stats.js';
 import { bestAccelerationSpans } from '../algo/accel.js';
 import { renderRideChart } from '../chart.js';
+import { rideCard, openSharePreview } from '../share.js';
 import { exportRideRaw } from '../export.js';
 import { getSettings } from '../settings.js';
 import { drawRoute, zoneColor, APPROX_COLOR } from '../map.js';
@@ -30,6 +31,7 @@ export function mountRide(root, { params, navigate }) {
   root.appendChild(el);
   let disposeMap = () => {};
   let closeFullscreen = () => {};
+  let closeShare = () => {};
   let alive = true;
 
   (async () => {
@@ -124,7 +126,8 @@ export function mountRide(root, { params, navigate }) {
         <input type="checkbox" data-counted ${ride.excluded ? '' : 'checked'}>
       </label>
       <div class="actions">
-        <button class="btn primary" data-export></button>
+        <button class="btn primary" data-share-card>${icon('share')}Поделиться карточкой</button>
+        <button class="btn" data-export></button>
         ${ride.sensorsDeleted || !ride.counts?.motion ? '' : '<button class="btn ghost" data-drop-sensors>Удалить данные датчиков</button>'}
         <button class="btn danger ghost" data-delete>Удалить поездку</button>
       </div>`;
@@ -164,6 +167,18 @@ export function mountRide(root, { params, navigate }) {
       if (alive) disposeMap = d; else d();
     });
     drawChart(ride, s, gps);
+    el.querySelector('[data-share-card]').addEventListener('click', async (e) => {
+      const btn = e.currentTarget;
+      btn.disabled = true;
+      try {
+        const blob = await rideCard({ ride, s, runs, records, me: getMe() });
+        if (alive) closeShare = openSharePreview(blob, `moto-${new Date(ride.startedAt).toISOString().slice(0, 10)}.png`);
+      } catch (err) {
+        toast(`Не удалось сделать карточку: ${err.message || err}`);
+      } finally {
+        btn.disabled = false;
+      }
+    });
     const legend = s.zones.map((z, i) => ({
       color: zoneColor(i),
       label: z.to === null ? `${zoneBound(z.from)}+` : `${zoneBound(z.from)}–${zoneBound(z.to)}`,
@@ -211,5 +226,5 @@ export function mountRide(root, { params, navigate }) {
     }, { onScrub: (t) => disposeMap.cursor?.(t === null ? null : posAt(t)) });
   }
 
-  return () => { alive = false; disposeMap(); closeFullscreen(); };
+  return () => { alive = false; disposeMap(); closeFullscreen(); closeShare(); };
 }
