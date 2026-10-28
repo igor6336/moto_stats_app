@@ -55,6 +55,7 @@
   --shimmer: rgba(255, 255, 255, .28);
   --shadow: rgba(0, 0, 0, .3);
   --lb-top: #7dd3fc;
+  --hero-top: rgba(7, 9, 12, .6);
   --ok: #34d399;
   --mid: #fbbf24;
   --bad: #f87171;
@@ -98,6 +99,7 @@
   --shimmer: rgba(15, 23, 42, .18);
   --shadow: rgba(15, 23, 42, .12);
   --lb-top: #4338ca;
+  --hero-top: rgba(238, 241, 247, .75);
   color-scheme: light;
 }
 
@@ -228,7 +230,7 @@ h2 {
 @keyframes shimmer { from { background-position: 120% 0; } to { background-position: -130% 0; } }
 
 /* The ride map fades and grows in while its route draws; record confetti. */
-.screen.ride .map-wrap { animation: map-in .35s var(--ease) both; }
+.ride-hero .map { animation: map-in .35s var(--ease) both; }
 @keyframes map-in { from { opacity: 0; } }
 .confetti { position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: 140; pointer-events: none; }
 .record-banner.celebrate { animation: pop-big .7s var(--ease) both; }
@@ -816,3 +818,26 @@ form .btn + .btn { margin-top: 10px; }
   .ri-thumb.draw .thumb-line { stroke-dasharray: none; stroke-dashoffset: 0; }
   .ri-thumb.draw circle:last-of-type { opacity: 1; }
 }
+
+/* ------------------------------------------------------------ ride hero */
+/* The ride map runs edge to edge at the top, under the status bar, with the
+   date and bike over its faded bottom. */
+.ride-hero {
+  position: relative; height: min(56vh, 470px);
+  margin: calc(-1 * (env(safe-area-inset-top) + 14px)) -16px 14px;
+}
+.ride-hero .map { position: absolute; inset: 0; height: auto; border: 0; border-radius: 0; box-shadow: none; }
+.hero-shade {
+  position: absolute; inset: 0; z-index: 2; pointer-events: none;
+  background: linear-gradient(180deg, var(--hero-top) 0%, transparent calc(env(safe-area-inset-top) + 70px), transparent 52%, var(--bg) 96%);
+}
+.hero-back {
+  position: absolute; z-index: 3; left: 16px; top: calc(env(safe-area-inset-top) + 10px);
+  display: inline-flex; align-items: center; gap: 2px; padding: 9px 14px 9px 9px; border-radius: 999px;
+  background: var(--panel); border: 1px solid var(--line-2); color: var(--text); font: 800 15px var(--font);
+  box-shadow: 0 4px 14px var(--shadow);
+}
+.ride-hero .map-expand { top: calc(env(safe-area-inset-top) + 10px); right: 16px; background: var(--panel); backdrop-filter: none; -webkit-backdrop-filter: none; }
+.hero-title { position: absolute; z-index: 3; left: 16px; right: 16px; bottom: 10px; pointer-events: none; }
+.hero-title h1 { margin: 0; font-size: 27px; text-shadow: 0 2px 14px var(--bg); }
+.hero-sub { margin-top: 4px; color: var(--muted); font-weight: 700; font-size: 14px; text-shadow: 0 1px 8px var(--bg); }

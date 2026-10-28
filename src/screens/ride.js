@@ -28,6 +28,13 @@ function leanHint(ride) {
   return `Наклон, удержанный 1,5 с и подтверждённый GPS: короткие пики не учитываются. Ноль определён ${ref}. Точность около ±5–8°. Телефон должен быть жёстко закреплён. Стойка появится позже.`;
 }
 
+// "27 октября, 11:15"; the year only when it is not the current one.
+function heroDate(ts) {
+  const d = new Date(ts);
+  const opts = { day: 'numeric', month: 'long', ...(d.getFullYear() !== new Date().getFullYear() ? { year: 'numeric' } : {}) };
+  return `${d.toLocaleDateString('ru-RU', opts).replace(' г.', '')}, ${d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`;
+}
+
 function recordBanner(records) {
   if (!records.length) return '';
   return `<div class="record-banner">${icon('trophy')}<div><b>${records.length > 1 ? 'Личные рекорды' : 'Личный рекорд'}</b>
@@ -86,7 +93,7 @@ export function mountRide(root, { params, navigate }) {
       if (!alive) return;
       const banner = el.querySelector('.record-banner');
       if (banner) banner.outerHTML = recordBanner(fresh);
-      else if (fresh.length) el.querySelector('.ride-head h1').insertAdjacentHTML('afterend', recordBanner(fresh));
+      else if (fresh.length) el.querySelector('.ride-head').insertAdjacentHTML('afterbegin', recordBanner(fresh));
     }
   })().catch((e) => { el.innerHTML = `<div class="empty">Ошибка: ${escapeHtml(e.message || e)}</div>`; });
 
@@ -105,9 +112,16 @@ export function mountRide(root, { params, navigate }) {
       ? ride.calibrations.map((c) => (c.ok ? 'OK' : 'шум')).join(', ')
       : 'нет';
     el.innerHTML = `
+      <div class="ride-hero">
+        <div class="map" data-map></div>
+        <div class="hero-shade"></div>
+        <button class="hero-back" data-back>${icon('chevron-left')}История</button>
+        <div class="hero-title">
+          <h1>${heroDate(ride.startedAt)}</h1>
+          <div class="hero-sub">${[getMe()?.bike, `${fmtDuration(s.duration)} в пути`].filter(Boolean).map(esc).join(' · ')}</div>
+        </div>
+      </div>
       <div class="ride-head">
-        <button class="btn ghost back" data-back>${icon('chevron-left')}История</button>
-        <h1>${fmtDate(ride.startedAt)}</h1>
         ${ride.status === 'interrupted' ? '<div class="badge warn">Запись прервана, сохранено до последнего сброса</div>' : ''}
         ${recordBanner(records)}
         ${s.duration > 60 && (s.approxTime || 0) / s.duration > 0.1 ? `<div class="banner warn">
@@ -116,9 +130,6 @@ export function mountRide(root, { params, navigate }) {
         ${s.duration > 60 && (s.untrackedTime + s.gapTime) / s.duration > 0.2 ? `<div class="banner warn">
           ${fmtDuration(s.untrackedTime + s.gapTime)} из ${fmtDuration(s.duration)} без GPS совсем (помещение, туннели,
           сильное глушение). Дистанция и время в движении за этот отрезок не посчитаны.</div>` : ''}
-      </div>
-      <div class="map-wrap">
-        <div class="map" data-map></div>
       </div>
       <div class="grid stats">
         <div class="stat"><div class="label">${icon('route')}Дистанция</div><div class="value">${fmtDistance(s.distance)}</div></div>
@@ -194,7 +205,7 @@ export function mountRide(root, { params, navigate }) {
     });
     const runs = routeByZone(gps, zones);
     const mapBox = el.querySelector('[data-map]');
-    drawRoute(mapBox, runs, { animate: true }).then((d) => {
+    drawRoute(mapBox, runs, { animate: true, bottom: 90 }).then((d) => { // the title covers the bottom
       if (alive) disposeMap = d; else d();
     });
     drawChart(ride, s, gps);

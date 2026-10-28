@@ -111,9 +111,15 @@ function yandexAdapter(ym, container, center, zoom) {
         remove() { map.removeChild(marker); },
       };
     },
-    fit(points, padding = 32) {
-      const v = viewForPoints(points, container.clientWidth, container.clientHeight, padding, 15);
-      map.update({ location: { center: ll(v.center), zoom: v.zoom } });
+    // bottom: extra px kept clear at the bottom (e.g. under a title).
+    fit(points, padding = 32, bottom = 0) {
+      const h = container.clientHeight;
+      const v = viewForPoints(points, container.clientWidth, h - bottom, padding, 15);
+      // The fitted box sits in the top (h - bottom) px: move the centre down by bottom / 2.
+      const world = 256 * 2 ** v.zoom, rad = Math.PI / 180;
+      const y = Math.log(Math.tan(Math.PI / 4 + (v.center[0] * rad) / 2)) - (bottom / 2 / world) * 2 * Math.PI;
+      const lat = (2 * Math.atan(Math.exp(y)) - Math.PI / 2) / rad;
+      map.update({ location: { center: ll([lat, v.center[1]]), zoom: v.zoom } });
     },
     setView(lat, lon, z) { map.update({ location: { center: [lon, lat], zoom: z, duration: 300 } }); },
     destroy() { map.destroy(); },
@@ -149,9 +155,9 @@ function leafletAdapter(L, container, center, zoom) {
         remove() { m.remove(); },
       };
     },
-    fit(points, padding = 32) {
+    fit(points, padding = 32, bottom = 0) {
       if (points.length === 1) map.setView(points[0], 15);
-      else map.fitBounds(L.latLngBounds(points), { padding: [padding, padding], maxZoom: 15 });
+      else map.fitBounds(L.latLngBounds(points), { paddingTopLeft: [padding, padding], paddingBottomRight: [padding, padding + bottom], maxZoom: 15 });
     },
     setView(lat, lon, z) { map.setView([lat, lon], z); },
     destroy() { map.remove(); },
@@ -200,7 +206,7 @@ function animateRoute(map, runs, ms, alive, done) {
   requestAnimationFrame(step);
 }
 
-export async function drawRoute(container, runs, { animate = false } = {}) {
+export async function drawRoute(container, runs, { animate = false, bottom = 0 } = {}) {
   const all = runs.flatMap((r) => r.coords);
   if (all.length < 2) {
     container.innerHTML = '<div class="map-empty">Нет точек маршрута</div>';
@@ -209,7 +215,7 @@ export async function drawRoute(container, runs, { animate = false } = {}) {
   try {
     const map = await createMap(container, { center: all[0], zoom: 13 });
     map.addMarker(all[0][0], all[0][1], START_HTML);
-    map.fit(all, 48); // room for the start/finish labels and the expand button
+    map.fit(all, 48, bottom); // room for the start/finish labels and the expand button
     let alive = true;
     const finish = () => map.addMarker(all.at(-1)[0], all.at(-1)[1], FINISH_HTML);
     // The route starts drawing once the map has painted its first tiles.
