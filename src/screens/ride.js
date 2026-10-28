@@ -171,7 +171,7 @@ export function mountRide(root, { params, navigate }) {
       const btn = e.currentTarget;
       btn.disabled = true;
       try {
-        const blob = await rideCard({ ride, s, runs, records, me: getMe() });
+        const blob = await rideCard({ ride, s, runs, maxPos: maxSpeedPos(gps, s), me: getMe() });
         if (alive) closeShare = openSharePreview(blob, `moto-${new Date(ride.startedAt).toISOString().slice(0, 10)}.png`);
       } catch (err) {
         toast(`Не удалось сделать карточку: ${err.message || err}`);
@@ -197,6 +197,15 @@ export function mountRide(root, { params, navigate }) {
           <span class="ml-time">${fmtDuration(s.approxTime)}</span>
         </div>` : ''}</div>`;
     expandable(mapBox, () => { closeFullscreen = openFullscreenMap((c) => drawRoute(c, runs), legendHtml); }, { tap: true });
+  }
+
+  // Where the max speed was: the precise fix nearest to its time.
+  function maxSpeedPos(gps, s) {
+    if (!Number.isFinite(s.maxSpeedT)) return null;
+    const tr = prepareTrack(gps);
+    let best = -1;
+    for (let i = 0; i < tr.n; i++) if (best < 0 || Math.abs(tr.t[i] - s.maxSpeedT) < Math.abs(tr.t[best] - s.maxSpeedT)) best = i;
+    return best < 0 ? null : [tr.lat[best], tr.lon[best]];
   }
 
   function drawChart(ride, s, gps) {
