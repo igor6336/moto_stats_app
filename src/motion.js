@@ -54,32 +54,6 @@ export function skeleton(kind = 'rows', n = 3) {
   return `<div class="skel">${row.repeat(n)}</div>`;
 }
 
-// History -> ride: the route thumbnail grows into the ride map. The list
-// remembers where the thumbnail was; the ride screen flies a copy from there.
-let morph = null;
-export function setMorphSource(el) {
-  const r = el.getBoundingClientRect();
-  morph = { rect: r, html: el.innerHTML, at: Date.now() };
-}
-export function flyMorphTo(target) {
-  const m = morph;
-  morph = null;
-  if (!m || Date.now() - m.at > 3000 || reducedMotion() || !target) return;
-  const to = target.getBoundingClientRect();
-  if (!to.width) return;
-  const fly = document.createElement('div');
-  fly.className = 'morph-fly';
-  fly.innerHTML = m.html;
-  Object.assign(fly.style, { left: `${m.rect.left}px`, top: `${m.rect.top}px`, width: `${m.rect.width}px`, height: `${m.rect.height}px` });
-  document.body.append(fly);
-  const anim = fly.animate([
-    { left: `${m.rect.left}px`, top: `${m.rect.top}px`, width: `${m.rect.width}px`, height: `${m.rect.height}px`, opacity: 1 },
-    { left: `${to.left}px`, top: `${to.top}px`, width: `${to.width}px`, height: `${to.height}px`, opacity: 1, offset: 0.8 },
-    { left: `${to.left}px`, top: `${to.top}px`, width: `${to.width}px`, height: `${to.height}px`, opacity: 0 },
-  ], { duration: 520, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'forwards' });
-  anim.onfinish = () => fly.remove();
-}
-
 // Confetti in the palette colours, once.
 export function confetti() {
   if (reducedMotion()) return;

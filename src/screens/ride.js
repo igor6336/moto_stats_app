@@ -5,7 +5,7 @@ import { computeSummary, routeByZone, prepareTrack, approxSpans } from '../algo/
 import { bestAccelerationSpans } from '../algo/accel.js';
 import { renderRideChart } from '../chart.js';
 import { rideCard, openSharePreview } from '../share.js';
-import { skeleton, countUp, flyMorphTo, confetti } from '../motion.js';
+import { skeleton, countUp, confetti } from '../motion.js';
 import { exportRideRaw } from '../export.js';
 import { getSettings } from '../settings.js';
 import { drawRoute, zoneColor, APPROX_COLOR } from '../map.js';
@@ -169,8 +169,7 @@ export function mountRide(root, { params, navigate }) {
       if (alive) disposeMap = d; else d();
     });
     drawChart(ride, s, gps);
-    flyMorphTo(mapBox);
-    countUp(el.querySelectorAll('.grid.stats .value'));
+    countUp(el.querySelectorAll('.grid.stats .value, .record-banner span b'));
     // Right after a recording: celebrate a new record once.
     let celebrate = null;
     try { celebrate = sessionStorage.getItem('celebrate'); sessionStorage.removeItem('celebrate'); } catch { /* private mode */ }

@@ -1,7 +1,7 @@
 import { listRides, getGpsData, deleteRide } from '../storage.js';
 import { computeRecords, RECORD_METRICS } from '../records.js';
 import { TOTAL_PERIODS, computeTotals, seasonByMonth } from '../totals.js';
-import { skeleton, countUp, setMorphSource } from '../motion.js';
+import { skeleton, countUp } from '../motion.js';
 import { prepareTrack } from '../algo/stats.js';
 import { routeThumb } from '../map.js';
 import { getMe } from '../social/client.js';
@@ -172,11 +172,7 @@ export function mountHistory(root, { navigate }) {
           ${selecting ? '' : `<span class="ri-chev">${icon('chevron-right')}</span>`}
         </button>`);
       item.addEventListener('click', () => {
-        if (!selecting) {
-          if (!locked) setMorphSource(item.querySelector('.ri-thumb'));
-          navigate(locked ? '#/record' : `#/ride/${r.id}`);
-          return;
-        }
+        if (!selecting) { navigate(locked ? '#/record' : `#/ride/${r.id}`); return; }
         if (locked) return;
         if (selected.has(r.id)) selected.delete(r.id); else selected.add(r.id);
         render();
