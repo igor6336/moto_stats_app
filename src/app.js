@@ -17,6 +17,7 @@ import { startLocationSharing } from './social/location.js';
 import { syncRides } from './social/rides.js';
 import { listRides } from './storage.js';
 import { needsOnboarding, markOnboarded, showOnboarding } from './onboarding.js';
+import { initPush } from './push.js';
 
 const routes = [
   { re: /^#\/record$/, tab: 'record', mount: mountRecord },
@@ -87,6 +88,7 @@ async function boot() {
   window.addEventListener('hashchange', render);
   render();
   registerServiceWorker();
+  initPush();
   if (needsOnboarding()) listRides().then((r) => (r.length ? markOnboarded() : showOnboarding()));
   // Social features load in the background; recording never waits for them.
   initSession().then((me) => {

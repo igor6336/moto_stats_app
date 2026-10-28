@@ -1,0 +1,44 @@
+# A push to every subscribed phone when a new version goes live: on a push
+# to main that changes APP_VERSION, wait until GitHub Pages serves it, then
+# run scripts/notify-release.mjs. Secrets: VAPID_PRIVATE_KEY, SUPABASE_SECRET_KEY.
+name: release push
+on:
+  push:
+    branches: [main]
+    paths: [src/version.js]
+  workflow_dispatch:
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - name: Did the version change?
+        id: ver
+        run: |
+          NEW=$(sed -n "s/^export const APP_VERSION = '\(.*\)';/\1/p" src/version.js)
+          OLD=$(git show HEAD~1:src/version.js 2>/dev/null | sed -n "s/^export const APP_VERSION = '\(.*\)';/\1/p")
+          echo "version $OLD -> $NEW"
+          echo "new=$NEW" >> "$GITHUB_OUTPUT"
+          if [ "$NEW" != "$OLD" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ]; then echo "changed=1" >> "$GITHUB_OUTPUT"; fi
+      - name: Wait for GitHub Pages to serve it
+        if: steps.ver.outputs.changed
+        run: |
+          for i in $(seq 1 60); do
+            if curl -fsS "https://igor6336.github.io/moto_stats_app/sw.js?t=$(date +%s)" | grep -q "VERSION = '${{ steps.ver.outputs.new }}'"; then echo live; exit 0; fi
+            sleep 30
+          done
+          echo "not live after 30 min"; exit 1
+      - uses: actions/setup-node@v4
+        if: steps.ver.outputs.changed
+        with:
+          node-version: 20
+      - name: Send pushes
+        if: steps.ver.outputs.changed
+        env:
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: |
+          npm install --no-save --no-package-lock web-push@3.6.7
+          node scripts/notify-release.mjs

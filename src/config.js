@@ -17,3 +17,7 @@ export const YANDEX_MAPS_KEY = '6d4ae16c-b2e0-47e8-932b-7d689265b22d';
 // Yandex Static API (map under the route on the share card), free plan.
 // A separate key from the JS API one. Empty = card without a map.
 export const YANDEX_STATIC_KEY = 'b09862dd-a95c-4be2-b8f2-1a5ecf3ac6aa';
+
+// Web Push (VAPID) public key: notifications about new versions. The private
+// half lives only in the GitHub Actions secret VAPID_PRIVATE_KEY.
+export const VAPID_PUBLIC_KEY = 'BFhjUK7jL_N0LVQNyFwCXI4NrATjtU2Z0wLnBfbV9IGPSA66EZ9NituaAk8Nfg5M-FUYUu2mA9F75OFaTylRLeI';

@@ -186,3 +186,19 @@ begin
   alter publication supabase_realtime add table public.locations;
 exception when duplicate_object then null;
 end $$;
+
+-- ---------------------------------------------------------------- push
+-- Web Push subscriptions (one per phone). The app writes its own; the
+-- release workflow reads all of them with the secret key, which bypasses RLS.
+create table if not exists public.push_subscriptions (
+  endpoint    text primary key,
+  user_id     uuid not null references auth.users(id) on delete cascade,
+  p256dh      text not null,
+  auth        text not null,
+  app_version text,
+  updated_at  timestamptz not null default now()
+);
+alter table public.push_subscriptions enable row level security;
+drop policy if exists push_own on public.push_subscriptions;
+create policy push_own on public.push_subscriptions for all to authenticated
+  using (user_id = auth.uid()) with check (user_id = auth.uid());
