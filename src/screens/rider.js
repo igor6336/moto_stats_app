@@ -10,7 +10,7 @@ import { escapeHtml, fmtSpeed, speedUnit } from '../format.js';
 import { h, toast } from '../ui.js';
 import { icon } from '../icons.js';
 import { routeAction, routeSubtitle } from '../social/route.js';
-import { skeleton } from '../motion.js';
+import { skeleton, countUp } from '../motion.js';
 
 const sec = (v) => (v ? `${v.toFixed(2)} с` : '—');
 
@@ -75,6 +75,7 @@ export function mountRider(root, { params, navigate }) {
       ${friendship ? `<div class="actions"><button class="btn danger ghost" data-remove>${isFriend ? 'Удалить из друзей' : 'Отменить запрос'}</button></div>` : ''}`;
 
     el.querySelector('[data-back]').addEventListener('click', () => history.back());
+    countUp(el.querySelectorAll('.grid.stats .value'));
     const photo = safeAvatar(p.avatar);
     if (photo) {
       const a = el.querySelector('.profile-card .avatar');

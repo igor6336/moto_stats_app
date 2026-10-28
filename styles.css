@@ -228,8 +228,8 @@ h2 {
 @keyframes shimmer { from { background-position: 120% 0; } to { background-position: -130% 0; } }
 
 /* The ride map fades and grows in while its route draws; record confetti. */
-.screen.ride .map-wrap { animation: map-in .5s .05s var(--ease) both; }
-@keyframes map-in { from { opacity: 0; transform: scale(.96); } }
+.screen.ride .map-wrap { animation: map-in .35s var(--ease) both; }
+@keyframes map-in { from { opacity: 0; } }
 .confetti { position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: 140; pointer-events: none; }
 .record-banner.celebrate { animation: pop-big .7s var(--ease) both; }
 .record-banner.celebrate > .icon { animation: shine 1.2s .25s ease-out; }

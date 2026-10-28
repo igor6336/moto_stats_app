@@ -7,6 +7,8 @@ import { currentPalette, gaugeStops } from '../palettes.js';
 import { DEFAULTS } from '../algo/stats.js';
 import { icon } from '../icons.js';
 import { h, toast, longPress } from '../ui.js';
+import { getRide } from '../storage.js';
+import { ensureLean } from '../ridelean.js';
 
 const STOP_HOLD_MS = 1200;
 
@@ -234,6 +236,8 @@ export function mountRecord(root, { navigate }) {
       longPress(stop, STOP_HOLD_MS, async () => {
         const id = await recorder.stop();
         if (id) {
+          // Lean is computed here, so the ride screen opens complete.
+          try { const saved = await getRide(id); if (saved) await ensureLean(saved); } catch (e) { console.warn('lean', e); }
           try { sessionStorage.setItem('celebrate', id); } catch { /* private mode */ }
           navigate(`#/ride/${id}`);
         }

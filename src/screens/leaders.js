@@ -4,7 +4,7 @@ import { CATEGORIES, PERIODS, computeLeaderboard } from '../algo/leaderboard.js'
 import { avatarHtml } from '../social/avatar.js';
 import { escapeHtml, fmtSpeed, speedUnit, fmtDistance, fmtDuration } from '../format.js';
 import { h } from '../ui.js';
-import { skeleton } from '../motion.js';
+import { skeleton, countUp } from '../motion.js';
 
 let category = 'maxSpeed';
 let period = 'month';
@@ -73,6 +73,7 @@ export function mountLeaders(root, { navigate }) {
         <div class="lb-val">${fmtValue(cat.kind, r.value)}</div>
       </div>`;
     }).join('');
+    countUp(box.querySelectorAll('.lb-val'));
     box.querySelectorAll('[data-user]').forEach((row) => row.addEventListener('click', () => {
       navigate(row.dataset.user === me.id ? '#/account' : `#/rider/${row.dataset.user}`);
     }));

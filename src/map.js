@@ -158,6 +158,12 @@ function leafletAdapter(L, container, center, zoom) {
   };
 }
 
+// Starts loading the map library ahead of time (e.g. on the History screen,
+// before a ride is opened), so the first ride map appears without a wait.
+export function preloadMap() {
+  loadYandex().catch(() => loadLeaflet()).catch(() => {});
+}
+
 // Creates an interactive map in the container, Yandex if possible.
 export async function createMap(container, { center = [55.75, 37.62], zoom = 10 } = {}) {
   try {
@@ -206,7 +212,8 @@ export async function drawRoute(container, runs, { animate = false } = {}) {
     map.fit(all, 48); // room for the start/finish labels and the expand button
     let alive = true;
     const finish = () => map.addMarker(all.at(-1)[0], all.at(-1)[1], FINISH_HTML);
-    if (animate && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) animateRoute(map, runs, 1100, () => alive, finish);
+    // The route starts drawing once the map has painted its first tiles.
+    if (animate && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) setTimeout(() => alive && animateRoute(map, runs, 1000, () => alive, finish), 250);
     else { for (const r of runs) map.addLine(r.coords, runColor(r), r.approx); finish(); }
     const dispose = () => { alive = false; map.destroy(); };
     // Position marker driven by the ride chart; null hides it.

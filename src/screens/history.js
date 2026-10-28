@@ -3,7 +3,7 @@ import { computeRecords, RECORD_METRICS } from '../records.js';
 import { TOTAL_PERIODS, computeTotals, seasonByMonth } from '../totals.js';
 import { skeleton, countUp } from '../motion.js';
 import { prepareTrack } from '../algo/stats.js';
-import { routeThumb } from '../map.js';
+import { routeThumb, preloadMap } from '../map.js';
 import { getMe } from '../social/client.js';
 import { deleteRemoteRide } from '../social/rides.js';
 import { fmtSpeed, speedUnit, fmtDistance, fmtDuration, fmtDate } from '../format.js';
@@ -18,6 +18,7 @@ export function mountHistory(root, { navigate }) {
     <div class="list" data-list>${skeleton('rows', 4)}</div>
   </section>`);
   root.appendChild(el);
+  preloadMap();
   let alive = true;
   let rides = [];
   let selecting = false;

@@ -1,6 +1,7 @@
 import { getRide, getGpsData, putRide, deleteRide, sensorBytes, listRides } from '../storage.js';
 import { rideRecords } from '../records.js';
 import { ensureLean, applyLean, dropSensorData } from '../ridelean.js';
+import { LEAN_VERSION } from '../algo/lean.js';
 import { computeSummary, routeByZone, prepareTrack, approxSpans } from '../algo/stats.js';
 import { bestAccelerationSpans } from '../algo/accel.js';
 import { renderRideChart } from '../chart.js';
@@ -27,6 +28,21 @@ function leanHint(ride) {
   return `Наклон, удержанный 1,5 с и подтверждённый GPS: короткие пики не учитываются. Ноль определён ${ref}. Точность около ±5–8°. Телефон должен быть жёстко закреплён. Стойка появится позже.`;
 }
 
+function recordBanner(records) {
+  if (!records.length) return '';
+  return `<div class="record-banner">${icon('trophy')}<div><b>${records.length > 1 ? 'Личные рекорды' : 'Личный рекорд'}</b>
+    <span>${records.map((r) => `${esc(r.metric.label)} <b>${esc(r.metric.fmt(r.value))}</b>`).join(' · ')}</span></div></div>`;
+}
+
+function leanSection(ride, s, pending = false) {
+  return `<div class="kv">
+      ${[['leanLeft', 'Наклон влево'], ['leanRight', 'Наклон вправо'], ['wheelie', 'Стойка']].map(([k, label]) =>
+        `<div><span>${label}</span><b>${pending && k !== 'wheelie' ? '<span class="sk" style="display:inline-block;width:42px;height:14px"></span>'
+          : Number.isFinite(s[k]) ? `${Math.round(s[k])}°` : '—'}</b></div>`).join('')}
+    </div>
+    <p class="hint">${pending ? 'Считаю наклон по данным датчиков…' : leanHint(ride)}</p>`;
+}
+
 export function mountRide(root, { params, navigate }) {
   const el = h(`<section class="screen ride">${skeleton('ride')}</section>`);
   root.appendChild(el);
@@ -40,7 +56,9 @@ export function mountRide(root, { params, navigate }) {
     let ride = await getRide(params.id);
     if (!alive) return;
     if (!ride) { el.innerHTML = '<div class="empty">Поездка не найдена</div>'; return; }
-    ride = await ensureLean(ride);
+    // Lean needs all sensor data (tens of thousands of rows): the screen
+    // shows at once and the lean section fills in when it is ready.
+    const leanPending = ride.status !== 'recording' && !ride.sensorsDeleted && ride.lean?.v !== LEAN_VERSION;
     const { gps } = await getGpsData(ride.id);
     if (!alive) return;
     const zones = getSettings().zones;
@@ -53,10 +71,26 @@ export function mountRide(root, { params, navigate }) {
     }
     const records = rideRecords({ ...ride, summary: s }, await listRides());
     if (!alive) return;
-    render(ride, s, gps, zones, records);
+    render(ride, s, gps, zones, records, leanPending);
+    if (leanPending) {
+      await ensureLean(ride);
+      if (!alive) return;
+      applyLean(s, ride);
+      ride.summary = s;
+      putRide(ride);
+      el.querySelector('[data-lean]').innerHTML = leanSection(ride, s);
+      el.querySelector('[data-chart-title]').textContent = `Скорость${ride.lean?.series ? ' и наклон' : ''}`;
+      disposeChart();
+      drawChart(ride, s, gps);
+      const fresh = rideRecords({ ...ride, summary: s }, await listRides());
+      if (!alive) return;
+      const banner = el.querySelector('.record-banner');
+      if (banner) banner.outerHTML = recordBanner(fresh);
+      else if (fresh.length) el.querySelector('.ride-head h1').insertAdjacentHTML('afterend', recordBanner(fresh));
+    }
   })().catch((e) => { el.innerHTML = `<div class="empty">Ошибка: ${escapeHtml(e.message || e)}</div>`; });
 
-  function render(ride, s, gps, zones, records = []) {
+  function render(ride, s, gps, zones, records = [], leanPending = false) {
     const u = speedUnit();
     const maxZone = Math.max(1e-9, ...s.zones.map((z) => z.time));
     const zoneRows = s.zones.map((z, i) => `
@@ -75,8 +109,7 @@ export function mountRide(root, { params, navigate }) {
         <button class="btn ghost back" data-back>${icon('chevron-left')}История</button>
         <h1>${fmtDate(ride.startedAt)}</h1>
         ${ride.status === 'interrupted' ? '<div class="badge warn">Запись прервана, сохранено до последнего сброса</div>' : ''}
-        ${records.length ? `<div class="record-banner">${icon('trophy')}<div><b>${records.length > 1 ? 'Личные рекорды' : 'Личный рекорд'}</b>
-          <span>${records.map((r) => `${esc(r.metric.label)} <b>${esc(r.metric.fmt(r.value))}</b>`).join(' · ')}</span></div></div>` : ''}
+        ${recordBanner(records)}
         ${s.duration > 60 && (s.approxTime || 0) / s.duration > 0.1 ? `<div class="banner warn">
           ${fmtDuration(s.approxTime)} из ${fmtDuration(s.duration)} со слабым GPS (глушение, туннели). Маршрут там
           приблизительный (пунктир на карте), дистанция примерная, скорость и разгоны за этот отрезок не считаются.</div>` : ''}
@@ -95,7 +128,7 @@ export function mountRide(root, { params, navigate }) {
         <div class="stat"><div class="label">${icon('timer')}В движении</div><div class="value">${fmtDuration(s.movingTime)}</div></div>
         <div class="stat"><div class="label">${icon('square')}Остановки</div><div class="value">${fmtDuration(s.stoppedTime)}</div></div>
       </div>
-      <h2>Скорость${ride.lean?.series ? ' и наклон' : ''}</h2>
+      <h2 data-chart-title>Скорость${ride.lean?.series ? ' и наклон' : ''}</h2>
       <div class="ride-chart" data-chart></div>
       <p class="hint">Проведите пальцем по графику: точка на карте покажет, где это было.</p>
       <h2>Зоны скорости, ${u}</h2>
@@ -106,11 +139,7 @@ export function mountRide(root, { params, navigate }) {
           `<div><span>${label}</span><b>${s.accel?.[k] ? `${s.accel[k].toFixed(2)} с` : '—'}</b></div>`).join('')}
       </div>
       <h2>Наклон и стойка <span class="badge">бета</span></h2>
-      <div class="kv">
-        ${[['leanLeft', 'Наклон влево'], ['leanRight', 'Наклон вправо'], ['wheelie', 'Стойка']].map(([k, label]) =>
-          `<div><span>${label}</span><b>${Number.isFinite(s[k]) ? `${Math.round(s[k])}°` : '—'}</b></div>`).join('')}
-      </div>
-      <p class="hint">${leanHint(ride)}</p>
+      <div data-lean>${leanSection(ride, s, leanPending)}</div>
       <h2>Качество данных</h2>
       <div class="kv">
         <div><span>Точек GPS</span><b>${s.points} из ${gps.length}</b></div>
