@@ -130,7 +130,7 @@ export async function rideCard({ ride, s, runs, maxPos = null, me = null }) {
   // Header.
   g.fillStyle = '#8b95a7';
   g.font = `800 30px ${TEXT}`;
-  g.fillText('МОТО ТЕЛЕМЕТРИЯ', 80, 120);
+  g.fillText('MotoHrust', 80, 120);
   g.fillStyle = '#f3f5f8';
   g.font = `800 64px ${DISPLAY}`;
   g.fillText(new Date(ride.startedAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' }).replace(' г.', ''), 80, 205);
@@ -202,7 +202,7 @@ export async function rideCard({ ride, s, runs, maxPos = null, me = null }) {
   g.strokeStyle = arc; g.lineWidth = 10; g.lineCap = 'round';
   g.beginPath(); g.arc(120, fy, 34, Math.PI * 0.75, Math.PI * 2.0); g.stroke();
   g.fillStyle = '#5b6474'; g.font = `700 30px ${TEXT}`;
-  g.fillText('записано в Мото телеметрии', 180, fy + 12);
+  g.fillText('записано в MotoHrust', 180, fy + 12);
 
   return new Promise((resolve) => c.toBlob(resolve, 'image/png'));
 }
