@@ -16,10 +16,15 @@ test('records pick the best ride per metric, lower is better for times', () => {
   assert.equal(r.a100_200, undefined);
 });
 
-test('a ride holds a record only against other rides', () => {
+test('a ride holds the records where it is the best', () => {
   const a = ride('a', 50, 5), b = ride('b', 60, 7);
-  assert.deepEqual(rideRecords(a, [a]), []);
+  assert.deepEqual(rideRecords(a, [a]), [], 'the very first ride holds none');
   assert.deepEqual(rideRecords(b, [a, b]).map((x) => x.metric.id), ['maxSpeed']);
   assert.deepEqual(rideRecords(a, [a, b]).map((x) => x.metric.id), ['a0_100']);
   assert.deepEqual(rideRecords({ ...b, excluded: true }, [a, b]), []);
+});
+
+test('a value no other ride has yet is a record too', () => {
+  const a = ride('a', 50, null), b = ride('b', 40, 6);
+  assert.deepEqual(rideRecords(b, [a, b]).map((x) => x.metric.id), ['a0_100']);
 });

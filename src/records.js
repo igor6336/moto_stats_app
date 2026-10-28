@@ -30,17 +30,18 @@ export function computeRecords(rides) {
   return out;
 }
 
-// Records this ride holds, among metrics some other ride also has: the very
-// first ride is not "a record" in everything.
+// Records this ride holds: the best value among all rides, even when no
+// other ride has that metric yet. The very first ride holds none, or it
+// would be "a record" in everything.
 export function rideRecords(ride, rides) {
   if (!counts(ride)) return [];
   const others = rides.filter((r) => r.id !== ride.id && counts(r));
+  if (!others.length) return [];
   const out = [];
   for (const m of RECORD_METRICS) {
     const v = valueOf(m, ride);
     if (v === null) continue;
     const prev = others.map((r) => valueOf(m, r)).filter((x) => x !== null);
-    if (!prev.length) continue;
     if (prev.every((p) => better(m, v, p))) out.push({ metric: m, value: v });
   }
   return out;
