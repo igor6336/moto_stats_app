@@ -1,6 +1,6 @@
-import { socialConfigured, getMe, onMeChange, signIn, signUp, signOut, updateProfile, humanError, fetchAvatarFull } from '../social/client.js';
+import { socialConfigured, getMe, onMeChange, signIn, signUp, updateProfile, humanError } from '../social/client.js';
 import { syncRides } from '../social/rides.js';
-import { fileToAvatar, avatarHtml, safeAvatar, openAvatarViewer, AVATAR_FULL } from '../social/avatar.js';
+import { fileToAvatar, avatarHtml, AVATAR_FULL } from '../social/avatar.js';
 import { escapeHtml } from '../format.js';
 import { h, toast } from '../ui.js';
 import { icon } from '../icons.js';
@@ -19,45 +19,8 @@ export function mountAccount(root, { navigate }) {
       return;
     }
     const me = getMe();
-    if (me && mode !== 'edit') return renderProfile(me);
     if (me) return renderForm('edit', me);
     renderForm(mode);
-  }
-
-  function renderProfile(me) {
-    el.innerHTML = `
-      <h1>Аккаунт</h1>
-      <div class="profile-card">
-        ${avatarHtml(me, 'avatar xl')}
-        <div>
-          <div class="pc-name">${escapeHtml(me.name)}</div>
-          <div class="pc-bike">${escapeHtml(me.bike || 'мотоцикл не указан')}</div>
-          <div class="pc-login">@${escapeHtml(me.login)}</div>
-        </div>
-      </div>
-      <div class="code-box">
-        <span>Ваш код для друзей</span>
-        <b data-code>${escapeHtml(me.public_id)}</b>
-        <button class="btn" data-copy>${icon('copy')}Копировать</button>
-      </div>
-      <div class="actions">
-        <button class="btn" data-edit>${icon('pencil')}Изменить профиль</button>
-        <button class="btn danger ghost" data-logout>${icon('log-out')}Выйти</button>
-      </div>`;
-    el.querySelector('[data-copy]').addEventListener('click', () => copyCode(me.public_id));
-    const photo = safeAvatar(me.avatar);
-    if (photo) {
-      const a = el.querySelector('.profile-card .avatar');
-      a.classList.add('tappable');
-      a.addEventListener('click', () => openAvatarViewer(photo, () => fetchAvatarFull(me.id)));
-    }
-    el.querySelector('[data-edit]').addEventListener('click', () => { mode = 'edit'; avatar = null; render(); });
-    el.querySelector('[data-logout]').addEventListener('click', async () => {
-      if (!confirm('Выйти из аккаунта? Поездки на телефоне останутся.')) return;
-      await signOut();
-      mode = 'login';
-      render();
-    });
   }
 
   function renderForm(kind, me = null) {
@@ -95,7 +58,7 @@ export function mountAccount(root, { navigate }) {
       avatar = null;
       render();
     }));
-    el.querySelector('[data-cancel]')?.addEventListener('click', () => { mode = 'login'; render(); });
+    el.querySelector('[data-cancel]')?.addEventListener('click', () => navigate('#/profile'));
     el.querySelector('[data-file]')?.addEventListener('change', async (e) => {
       const f = e.target.files[0];
       if (!f) return;
@@ -126,7 +89,7 @@ export function mountAccount(root, { navigate }) {
           toast('Вы вошли');
         }
         syncRides().catch(() => {});
-        render();
+        navigate('#/profile');
       } catch (err) {
         toast(humanError(err), 5000);
       } finally {
@@ -135,7 +98,8 @@ export function mountAccount(root, { navigate }) {
     });
   }
 
-  const off = onMeChange(() => render());
+  // A sign-in or sign-out elsewhere: show the matching form (not while typing).
+  const off = onMeChange(() => { if (!el.contains(document.activeElement)) render(); });
   render();
   return off;
 }

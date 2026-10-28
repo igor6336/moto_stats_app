@@ -6,6 +6,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
   shareLocation: true,          // show position to friends while the app is open
   theme: 'system',              // 'system' | 'dark' | 'light'
   palette: 'depth',             // accent palette id, see src/palettes.js
+  textSize: 'normal',           // 'normal' | 'large'
 });
 
 let current = { ...DEFAULT_SETTINGS };

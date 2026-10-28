@@ -57,6 +57,18 @@ export function computeLeaderboard(rides, categoryId, period, now = new Date()) 
   return rows;
 }
 
+// Where the rider stands: rank, how far behind the next place up (gap) or,
+// when first, how far ahead of second (lead). Gaps are absolute values.
+export function myPosition(rows, userId) {
+  const i = rows.findIndex((r) => r.userId === userId);
+  if (i < 0) return null;
+  const me = rows[i];
+  const above = rows.slice(0, i).reverse().find((r) => r.rank < me.rank);
+  if (above) return { rank: me.rank, total: rows.length, gap: Math.abs(above.value - me.value), nextRank: above.rank };
+  const below = rows.find((r) => r.rank > me.rank);
+  return { rank: me.rank, total: rows.length, lead: below ? Math.abs(me.value - below.value) : null };
+}
+
 // Totals and personal bests of one rider, for the profile screen.
 export function riderStats(rides, period = 'all', now = new Date()) {
   const from = periodStart(period, now);

@@ -8,6 +8,7 @@ import { createMap } from '../map.js';
 import { openFullscreenMap, expandable } from '../fullmap.js';
 import { avatarHtml } from '../social/avatar.js';
 import { copyCode } from './account.js';
+import { shareInvite } from '../social/invite.js';
 import { escapeHtml, fmtSpeed, speedUnit } from '../format.js';
 import { h, toast, actionSheet } from '../ui.js';
 import { icon } from '../icons.js';
@@ -49,7 +50,10 @@ export function mountFriends(root, { navigate }) {
     </label>
     <div class="code-box">
       <span>Ваш код</span><b>${escapeHtml(me.public_id)}</b>
-      <button class="btn" data-copy>${icon('copy')}Копировать</button>
+      <div class="row">
+        <button class="btn" data-copy>${icon('copy')}Копировать</button>
+        <button class="btn primary" data-invite>${icon('share')}Пригласить</button>
+      </div>
     </div>
     <form class="add-friend" data-add>
       <input name="code" placeholder="Код друга" autocapitalize="characters" autocorrect="off" spellcheck="false" required>
@@ -58,6 +62,7 @@ export function mountFriends(root, { navigate }) {
     <div data-lists>${skeleton('rows', 3)}</div>`;
 
   body.querySelector('[data-copy]').addEventListener('click', () => copyCode(me.public_id));
+  body.querySelector('[data-invite]').addEventListener('click', () => shareInvite(me));
   body.querySelector('[data-share]').addEventListener('change', async (e) => {
     try {
       await setSharing(e.target.checked);

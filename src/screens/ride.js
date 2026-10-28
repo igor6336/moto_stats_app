@@ -7,13 +7,14 @@ import { bestAccelerationSpans } from '../algo/accel.js';
 import { renderRideChart } from '../chart.js';
 import { rideCard, openSharePreview } from '../share.js';
 import { skeleton, countUp, confetti } from '../motion.js';
-import { exportRideRaw } from '../export.js';
+import { exportRideRaw, shareOrDownload } from '../export.js';
 import { getSettings } from '../settings.js';
 import { drawRoute, zoneColor, APPROX_COLOR } from '../map.js';
 import { openFullscreenMap, expandable } from '../fullmap.js';
 import { escapeHtml as esc } from '../format.js';
 import { fmtSpeed, speedValue, speedUnit, fmtDistance, fmtDuration, fmtDate, zoneBound, escapeHtml, fmtBytes } from '../format.js';
-import { h, toast, exportButton } from '../ui.js';
+import { h, toast, actionSheet } from '../ui.js';
+import { rideName, previousRide } from '../ridename.js';
 import { icon } from '../icons.js';
 import { getMe } from '../social/client.js';
 import { syncRides, deleteRemoteRide } from '../social/rides.js';
@@ -25,7 +26,29 @@ function leanHint(ride) {
   if (l?.reason === 'no-reference') return 'Наклон не посчитан: мало прямых участков с точным GPS, чтобы понять, как стоит телефон. Поможет калибровка перед стартом.';
   if (l?.reason === 'flat') return 'Наклон не посчитан: телефон лежал плашмя. Нужно крепление, где телефон стоит экраном к водителю.';
   const ref = l?.reference === 'manual' ? 'по калибровке перед стартом' : 'по прямым участкам поездки, калибровка не нужна';
-  return `Наклон, удержанный 1,5 с и подтверждённый GPS: короткие пики не учитываются. Ноль определён ${ref}. Точность около ±5–8°. Телефон должен быть жёстко закреплён. Стойка появится позже.`;
+  return `Точность ±5–8°. <button class="more" data-more>Подробнее</button><span class="more-text" hidden> Учитывается наклон, удержанный 1,5 с и подтверждённый GPS: короткие пики отбрасываются. Ноль определён ${ref}. Телефон должен быть жёстко закреплён. Стойка появится позже.</span>`;
+}
+
+// A short banner; the long explanation opens on tap.
+function banner(kind, short, more) {
+  return `<div class="banner ${kind}">${short} <button class="more" data-more>Подробнее</button><span class="more-text" hidden> ${more}</span></div>`;
+}
+
+// "+12 км/ч к прошлой" chips against the previous ride.
+function compareChips(s, prev) {
+  if (!prev) return '';
+  const p = prev.summary;
+  const chips = [];
+  const add = (label, cur, old, fmt, unit) => {
+    if (!Number.isFinite(cur) || !Number.isFinite(old) || !old) return;
+    const d = cur - old;
+    if (Math.abs(fmt(Math.abs(d))) === 0 || fmt(Math.abs(d)) === '0') return;
+    chips.push(`<span class="chip ${d > 0 ? 'up' : 'down'}">${label} ${d > 0 ? '+' : '−'}${fmt(Math.abs(d))}${unit ? ` ${unit}` : ''}</span>`);
+  };
+  add('Макс.', s.maxSpeed, p.maxSpeed, fmtSpeed, speedUnit());
+  add('Средняя', s.avgMovingSpeed, p.avgMovingSpeed, fmtSpeed, speedUnit());
+  add('Дистанция', s.distance, p.distance, fmtDistance, '');
+  return chips.length ? `<div class="compare"><span>К прошлой поездке</span>${chips.join('')}</div>` : '';
 }
 
 // "27 октября, 11:15"; the year only when it is not the current one.
@@ -76,9 +99,10 @@ export function mountRide(root, { params, navigate }) {
       ride.summary = s;
       putRide(ride);
     }
-    const records = rideRecords({ ...ride, summary: s }, await listRides());
+    const all = await listRides();
+    const records = rideRecords({ ...ride, summary: s }, all);
     if (!alive) return;
-    render(ride, s, gps, zones, records, leanPending);
+    render(ride, s, gps, zones, records, leanPending, ride.excluded ? null : previousRide(ride, all));
     if (leanPending) {
       await ensureLean(ride);
       if (!alive) return;
@@ -99,7 +123,7 @@ export function mountRide(root, { params, navigate }) {
     }
   })().catch((e) => { el.innerHTML = `<div class="empty">Ошибка: ${escapeHtml(e.message || e)}</div>`; });
 
-  function render(ride, s, gps, zones, records = [], leanPending = false) {
+  function render(ride, s, gps, zones, records = [], leanPending = false, prev = null) {
     const u = speedUnit();
     const maxZone = Math.max(1e-9, ...s.zones.map((z) => z.time));
     const zoneRows = s.zones.map((z, i) => `
@@ -118,24 +142,26 @@ export function mountRide(root, { params, navigate }) {
         <div class="map" data-map></div>
         <div class="hero-shade"></div>
         <button class="hero-back" data-back>${icon('chevron-left')}История</button>
+        <button class="hero-menu" data-menu aria-label="Действия">${icon('ellipsis')}</button>
         <div class="hero-title">
-          <h1>${heroDate(ride.startedAt)}</h1>
-          <div class="hero-sub">${[getMe()?.bike, `${fmtDuration(s.duration)} в пути`].filter(Boolean).map(esc).join(' · ')}</div>
+          <h1 data-name>${esc(rideName(ride))}</h1>
+          <div class="hero-sub">${[heroDate(ride.startedAt), getMe()?.bike, `${fmtDuration(s.duration)} в пути`].filter(Boolean).map(esc).join(' · ')}</div>
         </div>
       </div>
       <div class="ride-head">
         ${ride.status === 'interrupted' ? '<div class="badge warn">Запись прервана, сохранено до последнего сброса</div>' : ''}
         ${recordBanner(records)}
-        ${s.duration > 60 && (s.approxTime || 0) / s.duration > 0.1 ? `<div class="banner warn">
-          ${fmtDuration(s.approxTime)} из ${fmtDuration(s.duration)} со слабым GPS (глушение, туннели). Маршрут там
-          приблизительный (пунктир на карте), дистанция примерная, скорость и разгоны за этот отрезок не считаются.</div>` : ''}
-        ${s.duration > 60 && (s.untrackedTime + s.gapTime) / s.duration > 0.2 ? `<div class="banner warn">
-          ${fmtDuration(s.untrackedTime + s.gapTime)} из ${fmtDuration(s.duration)} без GPS совсем (помещение, туннели,
-          сильное глушение). Дистанция и время в движении за этот отрезок не посчитаны.</div>` : ''}
+        ${s.duration > 60 && (s.approxTime || 0) / s.duration > 0.1 ? banner('warn',
+          `Слабый GPS ${fmtDuration(s.approxTime)}: маршрут там приблизительный.`,
+          'Глушение или туннели. На карте этот отрезок пунктиром, дистанция примерная, скорость и разгоны за него не считаются.') : ''}
+        ${s.duration > 60 && (s.untrackedTime + s.gapTime) / s.duration > 0.2 ? banner('warn',
+          `Без GPS ${fmtDuration(s.untrackedTime + s.gapTime)}: этот отрезок не посчитан.`,
+          'Помещение, туннели или сильное глушение. Дистанция и время в движении за этот отрезок не учтены.') : ''}
+        ${compareChips(s, prev)}
       </div>
       <div class="grid stats">
         <div class="stat"><div class="label">${icon('route')}Дистанция</div><div class="value">${fmtDistance(s.distance)}</div></div>
-        <div class="stat"><div class="label">${icon('clock')}Время</div><div class="value">${fmtDuration(s.duration)}</div></div>
+        <div class="stat"><div class="label">${icon('clock')}В пути</div><div class="value">${fmtDuration(s.duration)}</div></div>
         <div class="stat"><div class="label">${icon('zap')}Макс.</div><div class="value">${fmtSpeed(s.maxSpeed)}<small>${u}</small></div></div>
         <div class="stat"><div class="label">${icon('activity')}Средняя</div><div class="value">${fmtSpeed(s.avgMovingSpeed)}<small>${u}</small></div></div>
         <div class="stat"><div class="label">${icon('timer')}В движении</div><div class="value">${fmtDuration(s.movingTime)}</div></div>
@@ -153,7 +179,8 @@ export function mountRide(root, { params, navigate }) {
       </div>
       <h2>Наклон и стойка <span class="badge">бета</span></h2>
       <div data-lean>${leanSection(ride, s, leanPending)}</div>
-      <h2>Качество данных</h2>
+      <details class="quality">
+      <summary>Качество данных${icon('chevron-right')}</summary>
       <div class="kv">
         <div><span>Точек GPS</span><b>${s.points} из ${gps.length}</b></div>
         <div><span>GPS частота</span><b>${q.gps ? `${q.gps.hz.toFixed(2)} Гц, пауз >2 с: ${q.gps.gaps}` : '—'}</b></div>
@@ -165,18 +192,52 @@ export function mountRide(root, { params, navigate }) {
         <div><span>Калибровка</span><b>${cal}</b></div>
         <div><span>Записей датчиков</span><b>${ride.sensorsDeleted ? 'удалены' : `${ride.counts?.motion ?? '—'} (~${fmtBytes(sensorBytes(ride))})`}</b></div>
       </div>
+      </details>
       <label class="switch-row">
         <span>Учитывать в рейтинге<small>Снимите, если ехали на машине или пассажиром</small></span>
         <input type="checkbox" data-counted ${ride.excluded ? '' : 'checked'}>
       </label>
       <div class="actions">
         <button class="btn primary" data-share-card>${icon('share')}Поделиться карточкой</button>
-        <button class="btn" data-export></button>
-        ${ride.sensorsDeleted || !ride.counts?.motion ? '' : '<button class="btn ghost" data-drop-sensors>Удалить данные датчиков</button>'}
-        <button class="btn danger ghost" data-delete>Удалить поездку</button>
       </div>`;
     el.querySelector('[data-back]').addEventListener('click', () => navigate('#/history'));
-    exportButton(el.querySelector('[data-export]'), 'Экспорт сырых данных', () => exportRideRaw(ride.id));
+    el.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-more]');
+      if (!b) return;
+      b.nextElementSibling.hidden = false;
+      b.remove();
+    });
+    el.querySelector('[data-menu]').addEventListener('click', () => {
+      const sensors = !ride.sensorsDeleted && ride.counts?.motion;
+      actionSheet(rideName(ride), heroDate(ride.startedAt), [
+        { label: 'Переименовать', icon: 'pencil', onClick: rename },
+        { label: 'Экспорт сырых данных', icon: 'download', onClick: exportRaw },
+        ...(sensors ? [{ label: 'Удалить данные датчиков', icon: 'trash-2', onClick: dropSensors }] : []),
+        { label: 'Удалить поездку', icon: 'trash-2', danger: true, onClick: removeRide },
+      ]);
+    });
+    async function rename() {
+      const name = prompt('Название поездки', rideName(ride));
+      if (name === null) return;
+      const fresh = (await getRide(ride.id)) || ride;
+      fresh.name = ride.name = name.trim().slice(0, 60) || null;
+      await putRide(fresh);
+      el.querySelector('[data-name]').textContent = rideName(ride);
+    }
+    // Reading the export is async, after which iOS no longer treats share()
+    // as user-initiated: a second sheet with one button makes a fresh tap.
+    async function exportRaw() {
+      toast('Готовлю файл…');
+      try {
+        const ready = await exportRideRaw(ride.id);
+        if (!alive) return;
+        actionSheet('Файл готов', fmtBytes(ready.blob.size), [
+          { label: 'Сохранить файл', icon: 'share', primary: true, onClick: () => shareOrDownload(ready) },
+        ]);
+      } catch (e) {
+        toast(`Ошибка экспорта: ${e.message || e}`);
+      }
+    }
     el.querySelector('[data-counted]').addEventListener('change', async (e) => {
       // Re-read: the sync may have updated the stored ride since this screen loaded it.
       const fresh = (await getRide(ride.id)) || ride;
@@ -186,14 +247,14 @@ export function mountRide(root, { params, navigate }) {
       if (getMe()) syncRides().then(() => toast(ride.excluded ? 'Поездка убрана из рейтинга' : 'Поездка учтена в рейтинге'))
         .catch(() => toast('Нет связи с сервером, обновится позже'));
     });
-    el.querySelector('[data-drop-sensors]')?.addEventListener('click', async () => {
+    async function dropSensors() {
       if (!confirm(`Удалить данные датчиков (~${fmtBytes(sensorBytes(ride))})? Маршрут, статистика и место в рейтинге останутся, `
         + 'но пересчитать наклон новой версией алгоритма будет нельзя.')) return;
       await dropSensorData(ride);
       toast('Данные датчиков удалены');
       navigate(`#/ride/${ride.id}`);
-    });
-    el.querySelector('[data-delete]').addEventListener('click', async () => {
+    }
+    async function removeRide() {
       if (!confirm('Удалить поездку вместе с сырыми данными? Это необратимо.')) return;
       if (getMe()) { // the stored copy may have synced after this screen loaded
         try { await deleteRemoteRide(ride.id); } catch {
@@ -204,7 +265,7 @@ export function mountRide(root, { params, navigate }) {
       await deleteRide(ride.id);
       toast('Поездка удалена');
       navigate('#/history');
-    });
+    }
     const runs = routeByZone(gps, zones);
     const mapBox = el.querySelector('[data-map]');
     drawRoute(mapBox, runs, { animate: true, bottom: 90 }).then((d) => { // the title covers the bottom

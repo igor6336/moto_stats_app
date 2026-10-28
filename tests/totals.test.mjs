@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { computeTotals, seasonByMonth, totalsStart } from '../src/totals.js';
+import { computeTotals, seasonByMonth, totalsStart, previousTotals } from '../src/totals.js';
 
 const NOW = new Date(2026, 9, 28, 12); // 28 Oct 2026
 const ride = (y, m, d, km, min, extra = {}) => ({
@@ -29,4 +29,11 @@ test('season by month runs from January to the current month', () => {
   assert.equal(months[5], 100000);
   assert.equal(months[9], 10000);
   assert.equal(totalsStart('season', NOW), new Date(2026, 0, 1).getTime());
+});
+
+test('previous period is last month or last season', () => {
+  const rides = [ride(2026, 9, 26, 15, 16), ride(2026, 8, 3, 30, 25), ride(2025, 5, 1, 50, 40)];
+  assert.equal(previousTotals(rides, 'month', NOW).distance, 30000);
+  assert.equal(previousTotals(rides, 'season', NOW).distance, 50000);
+  assert.equal(previousTotals(rides, 'all', NOW), null);
 });

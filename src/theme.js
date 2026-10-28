@@ -24,6 +24,13 @@ export function setThemePreference(value) {
   apply();
 }
 
+// Larger text: the whole interface is scaled a little.
+export function setTextSize(size) {
+  const large = size === 'large';
+  try { localStorage.setItem('textSize', large ? 'large' : 'normal'); } catch { /* private mode */ }
+  document.documentElement.dataset.text = large ? 'large' : 'normal';
+}
+
 export function setPalette(id) {
   try { localStorage.setItem('palette', id); } catch { /* private mode */ }
   if (document.documentElement.dataset.palette === id) return;

@@ -1,29 +1,20 @@
 import { getSettings, saveSettings, parseZones, DEFAULT_SETTINGS } from '../settings.js';
-import { setThemePreference, setPalette } from '../theme.js';
+import { setThemePreference, setPalette, setTextSize } from '../theme.js';
 import { PALETTES } from '../palettes.js';
 import { exportBackup, importFile } from '../export.js';
-import { recoverInterrupted, isStandalone } from '../recorder.js';
+import { recorder, recoverInterrupted, isStandalone } from '../recorder.js';
 import { listRides, sensorBytes } from '../storage.js';
 import { dropSensorData } from '../ridelean.js';
 import { fmtBytes } from '../format.js';
 import { APP_VERSION } from '../version.js';
 import { h, toast, exportButton } from '../ui.js';
-import { getMe, socialConfigured } from '../social/client.js';
-import { avatarHtml } from '../social/avatar.js';
-import { escapeHtml } from '../format.js';
 import { icon } from '../icons.js';
 
 export function mountSettings(root, { navigate }) {
   const s = getSettings();
-  const me = getMe();
   const el = h(`
     <section class="screen settings">
-      <h1>Настройки</h1>
-      ${socialConfigured() ? `<button class="account-row" data-account>
-        ${me ? `${avatarHtml(me)}<span><b>${escapeHtml(me.name)}</b><small>${escapeHtml(me.public_id)} · аккаунт</small></span>`
-          : '<span class="avatar avatar-empty">?</span><span><b>Войти / Регистрация</b><small>Друзья, карта и лидеры</small></span>'}
-        <i>${icon('chevron-right')}</i>
-      </button>` : ''}
+      <h1>Ещё</h1>
       <h2>Оформление</h2>
       <div class="seg" data-theme-pick>
         ${[['system', 'Как в iOS'], ['dark', 'Тёмная'], ['light', 'Светлая']].map(([v, l]) =>
@@ -32,6 +23,10 @@ export function mountSettings(root, { navigate }) {
       <div class="palettes" data-palette-pick>
         ${PALETTES.map((p) => `<button data-v="${p.id}" class="${(s.palette || 'depth') === p.id ? 'on' : ''}">
           <span class="pal-swatch" style="background:linear-gradient(135deg, ${p.stops.dark.slice(1).join(', ')})"></span>${p.name}</button>`).join('')}
+      </div>
+      <div class="seg" data-text-pick>
+        ${[['normal', 'Обычный текст'], ['large', 'Крупный текст']].map(([v, l]) =>
+          `<button data-v="${v}" class="${(s.textSize || 'normal') === v ? 'on' : ''}">${l}</button>`).join('')}
       </div>
       <h2>Запись</h2>
       <div class="group">
@@ -49,6 +44,12 @@ export function mountSettings(root, { navigate }) {
       </label>
       </div>
       <div class="actions"><button class="btn primary" data-save>${icon('check')}Сохранить</button></div>
+
+      <h2>Калибровка датчиков</h2>
+      <div class="kv" data-calib></div>
+      <div class="actions"><button class="btn" data-calibrate>${icon('crosshair')}Откалибровать</button></div>
+      <p class="hint">Не обязательна: ноль наклона определяется по прямым участкам каждой поездки. Нужна для коротких
+        поездок без прямых, например кругов по площадке. Телефон в креплении, мотоцикл ровно (не на подножке), 4 секунды не трогать.</p>
 
       <h2>Данные</h2>
       <div class="kv" data-storage></div>
@@ -68,11 +69,15 @@ export function mountSettings(root, { navigate }) {
       </div>
     </section>`);
   root.appendChild(el);
-  el.querySelector('[data-account]')?.addEventListener('click', () => navigate('#/account'));
   el.querySelectorAll('[data-theme-pick] button').forEach((b) => b.addEventListener('click', async () => {
     el.querySelectorAll('[data-theme-pick] button').forEach((x) => x.classList.toggle('on', x === b));
     setThemePreference(b.dataset.v);
     await saveSettings({ theme: b.dataset.v });
+  }));
+  el.querySelectorAll('[data-text-pick] button').forEach((b) => b.addEventListener('click', async () => {
+    el.querySelectorAll('[data-text-pick] button').forEach((x) => x.classList.toggle('on', x === b));
+    setTextSize(b.dataset.v);
+    await saveSettings({ textSize: b.dataset.v });
   }));
   el.querySelectorAll('[data-palette-pick] button').forEach((b) => b.addEventListener('click', async () => {
     el.querySelectorAll('[data-palette-pick] button').forEach((x) => x.classList.toggle('on', x === b));
@@ -89,6 +94,32 @@ export function mountSettings(root, { navigate }) {
   });
 
   exportButton(el.querySelector('[data-backup]'), 'Резервная копия', exportBackup);
+
+  function showCalib(note = '') {
+    const c = recorder.calibration;
+    const age = c ? Math.round((Date.now() - c.at) / 60000) : null;
+    el.querySelector('[data-calib]').innerHTML = `<div><span>Последняя</span><b>${note || (c
+      ? `${c.ok ? 'OK' : 'с шумом'}, ${age < 1 ? 'только что' : age < 120 ? `${age} мин назад` : new Date(c.at).toLocaleDateString('ru-RU')}`
+      : 'не было')}</b></div>`;
+  }
+  showCalib();
+  el.querySelector('[data-calibrate]').addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
+    const ready = recorder.prepare(); // sensor permission: must start inside the tap
+    btn.disabled = true;
+    try {
+      await ready;
+      let left = 4;
+      showCalib(`не трогайте… ${left}`);
+      const timer = setInterval(() => { left = Math.max(0, left - 1); showCalib(`не трогайте… ${left}`); }, 1000);
+      const res = await recorder.calibrate(4000);
+      clearInterval(timer);
+      showCalib();
+      toast(res?.ok ? 'Калибровка сохранена' : 'Телефон двигался или датчики не отвечают — повторите');
+    } finally {
+      btn.disabled = false;
+    }
+  });
 
   // Sensor rows are ~95% of the stored data. Keep the most recent rides
   // for algorithm work, offer to drop the rest.

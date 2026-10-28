@@ -1,5 +1,5 @@
 import { loadSettings } from './settings.js';
-import { setThemePreference, setPalette } from './theme.js';
+import { setThemePreference, setPalette, setTextSize } from './theme.js';
 import { icon } from './icons.js';
 import { recorder, recoverInterrupted } from './recorder.js';
 import { mountRecord } from './screens/record.js';
@@ -10,9 +10,13 @@ import { mountAccount } from './screens/account.js';
 import { mountFriends } from './screens/friends.js';
 import { mountLeaders } from './screens/leaders.js';
 import { mountRider } from './screens/rider.js';
+import { mountProfile } from './screens/profile.js';
+import { mountInvite } from './screens/invite.js';
 import { initSession } from './social/client.js';
 import { startLocationSharing } from './social/location.js';
 import { syncRides } from './social/rides.js';
+import { listRides } from './storage.js';
+import { needsOnboarding, markOnboarded, showOnboarding } from './onboarding.js';
 
 const routes = [
   { re: /^#\/record$/, tab: 'record', mount: mountRecord },
@@ -21,13 +25,15 @@ const routes = [
   { re: /^#\/friends$/, tab: 'friends', mount: mountFriends },
   { re: /^#\/leaders$/, tab: 'leaders', mount: mountLeaders },
   { re: /^#\/rider\/(.+)$/, tab: 'friends', mount: mountRider, keys: ['id'] },
+  { re: /^#\/profile$/, tab: 'profile', mount: mountProfile },
+  { re: /^#\/account$/, tab: 'profile', mount: mountAccount },
+  { re: /^#\/add\/(.+)$/, tab: 'friends', mount: mountInvite, keys: ['code'] },
   { re: /^#\/settings$/, tab: 'settings', mount: mountSettings },
-  { re: /^#\/account$/, tab: 'settings', mount: mountAccount },
 ];
 
 const view = document.getElementById('view');
 let unmount = () => {};
-const TAB_ORDER = ['record', 'history', 'friends', 'leaders', 'settings'];
+const TAB_ORDER = ['record', 'history', 'friends', 'leaders', 'profile', 'settings'];
 let lastDepth = null;
 
 function navigate(hash) {
@@ -68,18 +74,20 @@ function registerServiceWorker() {
   });
 }
 
-const TAB_ICONS = { record: 'gauge', history: 'history', friends: 'users', leaders: 'trophy', settings: 'settings-2' };
+const TAB_ICONS = { record: 'gauge', history: 'history', friends: 'users', leaders: 'trophy', profile: 'user', settings: 'settings-2' };
 document.querySelectorAll('.tabbar a').forEach((a) => a.insertAdjacentHTML('afterbegin', icon(TAB_ICONS[a.dataset.tab])));
 
 async function boot() {
   const settings = await loadSettings();
   setThemePreference(settings.theme);
   setPalette(settings.palette);
+  setTextSize(settings.textSize);
   await recorder.loadPendingCalibration();
   await recoverInterrupted();
   window.addEventListener('hashchange', render);
   render();
   registerServiceWorker();
+  if (needsOnboarding()) listRides().then((r) => (r.length ? markOnboarded() : showOnboarding()));
   // Social features load in the background; recording never waits for them.
   initSession().then((me) => {
     startLocationSharing();

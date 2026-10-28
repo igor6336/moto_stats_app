@@ -1,20 +1,17 @@
 import { listRides, getGpsData, deleteRide } from '../storage.js';
-import { computeRecords, RECORD_METRICS } from '../records.js';
-import { TOTAL_PERIODS, computeTotals, seasonByMonth } from '../totals.js';
-import { skeleton, countUp } from '../motion.js';
+import { skeleton } from '../motion.js';
 import { prepareTrack } from '../algo/stats.js';
 import { routeThumb, preloadMap } from '../map.js';
 import { getMe } from '../social/client.js';
 import { deleteRemoteRide } from '../social/rides.js';
-import { fmtSpeed, speedUnit, fmtDistance, fmtDuration, fmtDate } from '../format.js';
+import { fmtSpeed, speedUnit, fmtDistance, fmtDuration, fmtDate, escapeHtml } from '../format.js';
+import { rideName } from '../ridename.js';
 import { icon } from '../icons.js';
 import { h, toast } from '../ui.js';
 
 export function mountHistory(root, { navigate }) {
   const el = h(`<section class="screen history">
     <div class="title-row"><h1>История</h1><button class="btn small ghost" data-select hidden>Выбрать</button></div>
-    <div data-totals></div>
-    <div data-records></div>
     <div class="list" data-list>${skeleton('rows', 4)}</div>
   </section>`);
   root.appendChild(el);
@@ -97,52 +94,7 @@ export function mountHistory(root, { navigate }) {
     stopSelecting();
   }
 
-  let totalsPeriod = 'season';
-  let countedRecords = false; // count up once per visit, not on every re-render
-  const MONTHS = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
-  // Time in the saddle: "12 ч 05 мин", or "45 мин" under an hour.
-  const hours = (s) => {
-    const m = Math.round(s / 60);
-    return m < 60 ? `${m} мин` : `${Math.floor(m / 60)} ч ${String(m % 60).padStart(2, '0')} мин`;
-  };
-
-  function renderTotals() {
-    const box = el.querySelector('[data-totals]');
-    if (selecting || !rides.some((r) => r.summary && r.status !== 'recording')) { box.innerHTML = ''; return; }
-    const t = computeTotals(rides, totalsPeriod);
-    const months = totalsPeriod === 'season' ? seasonByMonth(rides) : null;
-    const maxM = months ? Math.max(1, ...months) : 1;
-    box.innerHTML = `<div class="totals">
-      <div class="seg small">${TOTAL_PERIODS.map((p) => `<button data-tp="${p.id}" class="${p.id === totalsPeriod ? 'on' : ''}">${p.label}</button>`).join('')}</div>
-      <div class="totals-grid">
-        <div><span>Пробег</span><b>${fmtDistance(t.distance)}</b></div>
-        <div><span>В седле</span><b>${hours(t.movingTime)}</b></div>
-        <div><span>Поездок</span><b>${t.rides}</b></div>
-        <div><span>Средняя</span><b>${t.rides ? `${fmtSpeed(t.avgSpeed)} <small>${speedUnit()}</small>` : '—'}</b></div>
-      </div>
-      ${months ? `<div class="months">${months.map((d, i) => `<div class="mbar ${d ? '' : 'none'}">
-        <i style="height:${Math.max(3, (d / maxM) * 100).toFixed(0)}%"></i><span>${MONTHS[i]}</span></div>`).join('')}</div>` : ''}
-    </div>`;
-    box.querySelectorAll('[data-tp]').forEach((b) => b.addEventListener('click', () => { totalsPeriod = b.dataset.tp; renderTotals(); }));
-    countUp(box.querySelectorAll('.totals-grid b'));
-  }
-
-  function renderRecords() {
-    const box = el.querySelector('[data-records]');
-    const rec = computeRecords(rides);
-    const items = RECORD_METRICS.filter((m) => rec[m.id]);
-    box.innerHTML = items.length && !selecting ? `<div class="records">
-      <div class="records-title">${icon('trophy')}Личные рекорды</div>
-      <div class="records-grid">${items.map((m) => `<button class="rec" data-ride="${rec[m.id].ride.id}">
-        <span>${m.label}</span><b>${m.fmt(rec[m.id].value)}</b><small>${new Date(rec[m.id].ride.startedAt).toLocaleDateString('ru-RU')}</small>
-      </button>`).join('')}</div></div>` : '';
-    box.querySelectorAll('[data-ride]').forEach((b) => b.addEventListener('click', () => navigate(`#/ride/${b.dataset.ride}`)));
-    if (!countedRecords) { countedRecords = true; countUp(box.querySelectorAll('.rec b')); }
-  }
-
   function render() {
-    renderTotals();
-    renderRecords();
     const list = el.querySelector('[data-list]');
     selectBtn.hidden = !selectable().length;
     if (!rides.length) {
@@ -160,10 +112,11 @@ export function mountHistory(root, { navigate }) {
           ${selecting ? `<span class="check">${on ? icon('check') : ''}</span>` : ''}
           <div class="ri-thumb">${thumbCache.get(r.id) || icon('route')}</div>
           <div class="ri-main">
-            <div class="ri-date">${fmtDate(r.startedAt)}
+            <div class="ri-date">${escapeHtml(rideName(r))}
               ${locked ? '<span class="badge rec">идёт запись</span>' : ''}
               ${r.status === 'interrupted' ? '<span class="badge warn">прервана</span>' : ''}
             </div>
+            <div class="ri-when">${fmtDate(r.startedAt)}</div>
             <div class="ri-stats">
               <span>${icon('route')}${s ? fmtDistance(s.distance) : '—'}</span>
               <span>${icon('clock')}${s ? fmtDuration(s.duration) : '—'}</span>

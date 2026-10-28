@@ -18,10 +18,22 @@ export function totalsStart(period, now = new Date()) {
 }
 
 export function computeTotals(rides, period, now = new Date()) {
-  const from = totalsStart(period, now);
+  return totalsBetween(rides, totalsStart(period, now), Infinity);
+}
+
+// The period before: last month, last season. Null for "all time".
+export function previousTotals(rides, period, now = new Date()) {
+  if (period === 'all') return null;
+  const to = totalsStart(period, now);
+  const d = new Date(to);
+  const from = period === 'month' ? new Date(d.getFullYear(), d.getMonth() - 1, 1) : new Date(d.getFullYear() - 1, 0, 1);
+  return totalsBetween(rides, from.getTime(), to);
+}
+
+function totalsBetween(rides, from, to) {
   const t = { rides: 0, distance: 0, movingTime: 0, avgSpeed: 0 };
   for (const r of rides) {
-    if (!counts(r) || r.startedAt < from) continue;
+    if (!counts(r) || r.startedAt < from || r.startedAt >= to) continue;
     t.rides++;
     t.distance += r.summary.distance || 0;
     t.movingTime += r.summary.movingTime || 0;

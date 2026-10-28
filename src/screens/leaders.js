@@ -1,6 +1,6 @@
 import { socialConfigured, getMe, humanError } from '../social/client.js';
 import { fetchBoardData, syncRides } from '../social/rides.js';
-import { CATEGORIES, PERIODS, computeLeaderboard } from '../algo/leaderboard.js';
+import { CATEGORIES, PERIODS, computeLeaderboard, myPosition } from '../algo/leaderboard.js';
 import { avatarHtml } from '../social/avatar.js';
 import { escapeHtml, fmtSpeed, speedUnit, fmtDistance, fmtDuration } from '../format.js';
 import { h } from '../ui.js';
@@ -8,6 +8,16 @@ import { skeleton, countUp } from '../motion.js';
 
 let category = 'maxSpeed';
 let period = 'month';
+
+// "Вы 4-й · до 2-го места 0.30 с" above the table.
+function positionLine(cat, pos) {
+  if (!pos) return `<div class="my-pos none">У вас нет результата за этот период</div>`;
+  if (pos.total === 1) return `<div class="my-pos">Вы 1-й · пока без соперников</div>`;
+  const tail = pos.gap !== undefined
+    ? `до ${pos.nextRank}-го места ${fmtValue(cat.kind, pos.gap)}`
+    : pos.lead ? `отрыв от 2-го места ${fmtValue(cat.kind, pos.lead)}` : 'делите первое место';
+  return `<div class="my-pos ${pos.rank === 1 ? 'first' : ''}">Вы ${pos.rank}-й из ${pos.total} · ${tail}</div>`;
+}
 
 function fmtValue(kind, v) {
   if (kind === 'speed') return `${fmtSpeed(v)} ${speedUnit()}`;
@@ -60,7 +70,7 @@ export function mountLeaders(root, { navigate }) {
       return;
     }
     if (!rows.length) { box.innerHTML = '<div class="empty">Нет поездок за этот период</div>'; return; }
-    box.innerHTML = rows.map((r) => {
+    box.innerHTML = positionLine(cat, myPosition(rows, me.id)) + rows.map((r) => {
       const p = board.profiles.get(r.userId) || { name: '?' };
       const bike = r.best?.bike || p.bike || '';
       return `<div class="lb-row tappable ${r.userId === me.id ? 'me' : ''}" data-user="${escapeHtml(r.userId)}">
@@ -75,7 +85,7 @@ export function mountLeaders(root, { navigate }) {
     }).join('');
     countUp(box.querySelectorAll('.lb-val'));
     box.querySelectorAll('[data-user]').forEach((row) => row.addEventListener('click', () => {
-      navigate(row.dataset.user === me.id ? '#/account' : `#/rider/${row.dataset.user}`);
+      navigate(row.dataset.user === me.id ? '#/profile' : `#/rider/${row.dataset.user}`);
     }));
   }
 

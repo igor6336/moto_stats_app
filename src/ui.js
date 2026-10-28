@@ -80,7 +80,7 @@ export function actionSheet(title, subtitle, actions) {
   sheet.querySelector('.sheet-sub').textContent = subtitle || '';
   const close = () => sheet.remove();
   for (const a of actions) {
-    const b = h(`<button class="btn ${a.primary ? 'primary' : ''}">${a.icon ? icon(a.icon) : ''}<span></span></button>`);
+    const b = h(`<button class="btn ${a.primary ? 'primary' : ''} ${a.danger ? 'danger ghost' : ''}">${a.icon ? icon(a.icon) : ''}<span></span></button>`);
     b.querySelector('span').textContent = a.label;
     b.addEventListener('click', () => { close(); a.onClick(); });
     sheet.querySelector('.sheet-actions').append(b);

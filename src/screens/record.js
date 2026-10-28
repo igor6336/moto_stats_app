@@ -56,8 +56,8 @@ export function mountRecord(root, { navigate }) {
         Во вкладке Safari данные могут быть удалены.
       </div>
       <div class="banner error" data-error hidden></div>
-      <div class="banner warn" data-weak hidden></div>
-      <div class="pills">
+      <button class="status-line" data-status><span class="dot"></span><span data-status-text>…</span>${icon('chevron-right')}</button>
+      <div class="pills" data-details hidden>
         <span class="pill" data-pill="gps">GPS</span>
         <span class="pill" data-pill="motion">Датчики</span>
         <span class="pill" data-pill="wake">Экран</span>
@@ -76,7 +76,6 @@ export function mountRecord(root, { navigate }) {
         <div class="stat"><div class="label">${icon('zap')}Макс.</div><div class="value" data-v="max">—</div></div>
         <div class="stat"><div class="label">${icon('activity')}Средняя</div><div class="value" data-v="avg">—</div></div>
       </div>
-      <div class="calib" data-calib></div>
       <div class="actions" data-actions></div>
     </section>`);
   root.appendChild(el);
@@ -85,9 +84,13 @@ export function mountRecord(root, { navigate }) {
   const overlayRoot = document.getElementById('overlay-root');
   let overlay = null;
   let lastState = null;
-  let calibCountdown = null;
 
   $('[data-standalone]').hidden = isStandalone();
+  $('[data-status]').addEventListener('click', () => {
+    const d = $('[data-details]');
+    d.hidden = !d.hidden;
+    $('[data-status]').classList.toggle('open', !d.hidden);
+  });
 
   function setPill(name, cls, text) {
     const p = $(`[data-pill="${name}"]`);
@@ -95,16 +98,27 @@ export function mountRecord(root, { navigate }) {
     p.textContent = text;
   }
 
+  // One line answers "can I ride?"; the technical pills open on a tap.
+  function updateStatus() {
+    const s = recorder.status, rec = recorder.recording;
+    const fresh = recorder.gpsFresh(), acc = fresh ? Math.round(recorder.lastFix.accuracy) : null;
+    const w = wakeLockState();
+    let level = 'mid', text;
+    if (s.gps === 'denied' || s.gps === 'unsupported') { level = 'bad'; text = 'Нет доступа к геопозиции'; }
+    else if (rec && (w === 'lost' || w === 'unsupported')) text = 'Экран может погаснуть: не блокируйте телефон';
+    else if (rec && s.motion === 'none') text = 'Датчики не отвечают: наклон не запишется';
+    else if (weakGps()) text = rec ? 'Слабый GPS: маршрут пишется приблизительно' : 'Слабый GPS: можно ехать, маршрут будет приблизительным';
+    else if (fresh) { level = 'ok'; text = rec ? `Идёт запись · GPS ±${acc} м` : `Готово к поездке · GPS ±${acc} м`; }
+    else text = rec ? 'Нет GPS: ждём сигнал, запись идёт' : 'Ищем спутники… начинать можно уже сейчас';
+    const line = $('[data-status]');
+    line.className = `status-line ${level}`;
+    $('[data-status-text]').textContent = text;
+  }
+
   function updatePills() {
+    updateStatus();
     const s = recorder.status;
     const weak = weakGps();
-    const banner = $('[data-weak]');
-    banner.hidden = !weak;
-    if (weak) {
-      banner.textContent = recorder.recording
-        ? 'Глушение GPS: маршрут пишется приблизительно, скорость и разгоны не замеряются. Запись продолжается.'
-        : 'Слабый GPS: скорость не показывается. Начинайте запись — маршрут запишется приблизительно, замеры включатся сами, когда сигнал вернётся.';
-    }
     if (s.gps === 'ok' && recorder.gpsFresh()) {
       const acc = recorder.lastFix.accuracy;
       setPill('gps', acc <= 10 ? 'ok' : 'mid', `GPS ${weak ? 'слабый ' : ''}±${Math.round(acc)} м`);
@@ -190,47 +204,23 @@ export function mountRecord(root, { navigate }) {
       rt.innerHTML = `<span class="rec-dot"></span> ЗАПИСЬ ${fmtDuration((Date.now() - recorder.ride.startedAt) / 1000)}`;
     } else rt.textContent = '';
     if (overlay?.status) overlay.status.textContent = recorder.recording ? rt.textContent : '';
-  }
-
-  function updateCalib() {
-    const c = recorder.calibration;
-    const box = $('[data-calib]');
-    if (recorder.calib) {
-      box.innerHTML = `<b>Калибровка… ${calibCountdown ?? ''}</b><br>Мотоцикл ровно и вертикально, не трогать.`;
-      return;
-    }
-    if (!c) {
-      box.innerHTML = recorder.state === 'idle' ? '' : 'Калибровка не обязательна: наклон считается по прямым участкам поездки. Для коротких поездок по кругу — мотоцикл ровно (не на подножке) и «Калибровка».';
-      return;
-    }
-    const dev = recorder.deviation();
-    const age = Math.round((Date.now() - c.at) / 60000);
-    box.innerHTML = `${c.ok ? 'Калибровка OK' : '<span class="bad-text">Калибровка с шумом: повторите</span>'}
-      · ${age < 1 ? 'только что' : `${age} мин назад`}
-      ${Number.isFinite(dev) ? `<br>Отклонение от калибровки: <b>${dev.toFixed(1)}°</b>` : ''}`;
+    if (overlay?.dist) overlay.dist.textContent = s ? fmtDistance(s.distance) : '';
   }
 
   function renderActions() {
     const box = $('[data-actions]');
     box.innerHTML = '';
     const state = recorder.state;
-    if (state === 'idle') {
-      const b = h(`<button class="btn primary xl">${icon('satellite')}Включить датчики</button>`);
-      // prepare() must run synchronously in the tap handler for iOS.
-      b.addEventListener('click', () => { recorder.prepare(); b.disabled = true; });
-      box.append(b);
-      return;
-    }
-    const calib = h(`<button class="btn">${icon('crosshair')}Калибровка</button>`);
-    calib.disabled = !!recorder.calib;
-    calib.addEventListener('click', runCalibration);
-    if (state === 'ready') {
-      const start = h(`<button class="btn primary xl">${icon('play')}Старт</button>`);
+    if (state === 'idle' || state === 'ready') {
+      // One tap: sensor permission (iOS asks only inside the tap, so
+      // prepare() runs synchronously here), then the recording starts.
+      const start = h(`<button class="btn primary xl">${icon('play')}Начать поездку</button>`);
       start.addEventListener('click', async () => {
+        const ready = recorder.prepare();
         start.disabled = true;
-        try { await recorder.start(); } catch (e) { toast(e.message); start.disabled = false; }
+        try { await ready; await recorder.start(); } catch (e) { toast(e.message); start.disabled = false; }
       });
-      box.append(start, calib);
+      box.append(start);
     } else if (state === 'recording') {
       const stop = h(`<button class="btn danger xl hold">${icon('square')}<span class="stack">Стоп<small>удерживайте</small></span></button>`);
       longPress(stop, STOP_HOLD_MS, async () => {
@@ -242,30 +232,16 @@ export function mountRecord(root, { navigate }) {
           navigate(`#/ride/${id}`);
         }
       });
-      const black = h(`<button class="btn">${icon('moon')}Чёрный режим</button>`);
-      black.addEventListener('click', () => showOverlay('black'));
+      const big = h(`<button class="btn">${icon('maximize-2')}Крупный экран</button>`);
+      big.addEventListener('click', () => showOverlay('black'));
       const lock = h(`<button class="btn">${icon('lock')}Блокировка</button>`);
       lock.addEventListener('click', () => showOverlay('lock'));
       const row = h('<div class="row"></div>');
-      row.append(black, lock, calib);
+      row.append(big, lock);
       box.append(stop, row);
     } else {
       box.append(h('<button class="btn xl" disabled>Сохранение…</button>'));
     }
-  }
-
-  async function runCalibration() {
-    calibCountdown = 4;
-    const timer = setInterval(() => { calibCountdown = Math.max(0, calibCountdown - 1); updateCalib(); }, 1000);
-    const p = recorder.calibrate(4000);
-    renderActions();
-    updateCalib();
-    const res = await p;
-    clearInterval(timer);
-    calibCountdown = null;
-    renderActions();
-    updateCalib();
-    if (res && !res.ok) toast('Калибровка шумная или датчики не отвечают — повторите');
   }
 
   function showOverlay(kind) {
@@ -275,13 +251,14 @@ export function mountRecord(root, { navigate }) {
             <div class="bm-status"></div>
             <div class="bm-speed">—</div>
             <div class="bm-unit">${speedUnit()}</div>
+            <div class="bm-dist"></div>
             <div class="hold-hint">удерживайте ${UNLOCK_HOLD_MS / 1000} с для выхода</div>
           </div>`)
       : h(`<div class="overlay lock hold-area">
             <div class="hold-hint lock-badge">${icon('lock')} Заблокировано · удерживайте ${UNLOCK_HOLD_MS / 1000} с</div>
           </div>`);
     overlayRoot.append(o);
-    overlay = { el: o, speed: o.querySelector('.bm-speed'), status: o.querySelector('.bm-status') };
+    overlay = { el: o, speed: o.querySelector('.bm-speed'), status: o.querySelector('.bm-status'), dist: o.querySelector('.bm-dist') };
     longPress(o, UNLOCK_HOLD_MS, hideOverlay);
     updateSpeed();
     updateStats();
@@ -310,11 +287,10 @@ export function mountRecord(root, { navigate }) {
     err.hidden = !msg;
     err.textContent = msg;
     updatePills();
-    updateCalib();
     updateStats();
   }
   function onGps() { updateSpeed(); updatePills(); updateStats(); }
-  function onTick() { updatePills(); updateSpeed(); updateStats(); if (!recorder.calib) updateCalib(); }
+  function onTick() { updatePills(); updateSpeed(); updateStats(); }
 
   recorder.addEventListener('change', onChange);
   recorder.addEventListener('gps', onGps);

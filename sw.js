@@ -1,7 +1,7 @@
 // App shell is served from cache so the app starts without network.
 // Bump VERSION (and APP_VERSION in src/version.js) on every deploy: the new
 // worker re-downloads the whole shell, so files never mix across versions.
-const VERSION = '0.17.1';
+const VERSION = '0.18.0';
 const SHELL_CACHE = `moto-shell-${VERSION}`;
 const CDN_CACHE = 'moto-cdn-v1';
 
@@ -62,6 +62,11 @@ const SHELL = [
   './src/screens/friends.js',
   './src/screens/leaders.js',
   './src/screens/rider.js',
+  './src/screens/profile.js',
+  './src/screens/invite.js',
+  './src/social/invite.js',
+  './src/ridename.js',
+  './src/onboarding.js',
   './vendor/supabase.js',
 ];
 

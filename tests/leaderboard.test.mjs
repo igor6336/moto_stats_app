@@ -91,3 +91,18 @@ test('riderStats: totals, bests and period filter', async () => {
   assert.equal(all.leanRight, 0);
   assert.equal(riderStats([{ ...rs[0], lean_left_deg: 38, wheelie_deg: 52 }]).leanLeft, 38);
 });
+
+test('my position: gap to the next place, lead when first', async () => {
+  const { myPosition } = await import('../src/algo/leaderboard.js');
+  const rows = [
+    { userId: 'a', value: 50, rank: 1 },
+    { userId: 'b', value: 40, rank: 2 },
+    { userId: 'c', value: 40, rank: 2 },
+    { userId: 'd', value: 30, rank: 4 },
+  ];
+  assert.deepEqual(myPosition(rows, 'd'), { rank: 4, total: 4, gap: 10, nextRank: 2 });
+  assert.deepEqual(myPosition(rows, 'c'), { rank: 2, total: 4, gap: 10, nextRank: 1 });
+  assert.deepEqual(myPosition(rows, 'a'), { rank: 1, total: 4, lead: 10 });
+  assert.deepEqual(myPosition([rows[0]], 'a'), { rank: 1, total: 1, lead: null });
+  assert.equal(myPosition(rows, 'x'), null);
+});
