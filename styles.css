@@ -768,3 +768,18 @@ form .btn + .btn { margin-top: 10px; }
 .share-view img { max-width: 100%; max-height: calc(100% - 90px); border-radius: 18px; box-shadow: 0 20px 60px rgba(0, 0, 0, .6); animation: zoom-in .3s var(--ease); }
 .share-actions { display: flex; gap: 10px; width: 100%; max-width: 420px; }
 .share-actions .btn { flex: 1; }
+
+/* ------------------------------------------------------------ totals */
+.totals { margin: 4px 0 12px; padding: 12px; border-radius: var(--radius); background: var(--surface); border: 1px solid var(--line); }
+.seg.small button { padding: 8px 6px; font-size: 13px; }
+.totals-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; margin-top: 10px; }
+.totals-grid > div { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border-radius: var(--radius-s); background: var(--surface-2); border: 1px solid var(--line); }
+.totals-grid span { color: var(--muted); font: 600 12px var(--font); }
+.totals-grid b { color: var(--text); font: 800 19px var(--display); white-space: nowrap; }
+.totals-grid small { color: var(--muted); font: 700 11px var(--font); }
+.months { display: flex; align-items: flex-end; gap: 4px; height: 92px; margin-top: 12px; padding-top: 6px; }
+.mbar { flex: 1; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 4px; }
+.mbar i { width: 100%; max-width: 22px; border-radius: 5px 5px 2px 2px; background: var(--accent-grad); }
+.mbar.none i { background: var(--line-2); }
+.mbar span { color: var(--faint); font: 700 9.5px var(--font); }
+.totals .seg { margin-bottom: 0; }

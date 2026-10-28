@@ -1,5 +1,6 @@
 import { listRides, getGpsData, deleteRide } from '../storage.js';
 import { computeRecords, RECORD_METRICS } from '../records.js';
+import { TOTAL_PERIODS, computeTotals, seasonByMonth } from '../totals.js';
 import { prepareTrack } from '../algo/stats.js';
 import { routeThumb } from '../map.js';
 import { getMe } from '../social/client.js';
@@ -11,6 +12,7 @@ import { h, toast } from '../ui.js';
 export function mountHistory(root, { navigate }) {
   const el = h(`<section class="screen history">
     <div class="title-row"><h1>История</h1><button class="btn small ghost" data-select hidden>Выбрать</button></div>
+    <div data-totals></div>
     <div data-records></div>
     <div class="list" data-list><div class="loading">Загрузка</div></div>
   </section>`);
@@ -93,6 +95,34 @@ export function mountHistory(root, { navigate }) {
     stopSelecting();
   }
 
+  let totalsPeriod = 'season';
+  const MONTHS = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
+  // Time in the saddle: "12 ч 05 мин", or "45 мин" under an hour.
+  const hours = (s) => {
+    const m = Math.round(s / 60);
+    return m < 60 ? `${m} мин` : `${Math.floor(m / 60)} ч ${String(m % 60).padStart(2, '0')} мин`;
+  };
+
+  function renderTotals() {
+    const box = el.querySelector('[data-totals]');
+    if (selecting || !rides.some((r) => r.summary && r.status !== 'recording')) { box.innerHTML = ''; return; }
+    const t = computeTotals(rides, totalsPeriod);
+    const months = totalsPeriod === 'season' ? seasonByMonth(rides) : null;
+    const maxM = months ? Math.max(1, ...months) : 1;
+    box.innerHTML = `<div class="totals">
+      <div class="seg small">${TOTAL_PERIODS.map((p) => `<button data-tp="${p.id}" class="${p.id === totalsPeriod ? 'on' : ''}">${p.label}</button>`).join('')}</div>
+      <div class="totals-grid">
+        <div><span>Пробег</span><b>${fmtDistance(t.distance)}</b></div>
+        <div><span>В седле</span><b>${hours(t.movingTime)}</b></div>
+        <div><span>Поездок</span><b>${t.rides}</b></div>
+        <div><span>Средняя</span><b>${t.rides ? `${fmtSpeed(t.avgSpeed)} <small>${speedUnit()}</small>` : '—'}</b></div>
+      </div>
+      ${months ? `<div class="months">${months.map((d, i) => `<div class="mbar ${d ? '' : 'none'}">
+        <i style="height:${Math.max(3, (d / maxM) * 100).toFixed(0)}%"></i><span>${MONTHS[i]}</span></div>`).join('')}</div>` : ''}
+    </div>`;
+    box.querySelectorAll('[data-tp]').forEach((b) => b.addEventListener('click', () => { totalsPeriod = b.dataset.tp; renderTotals(); }));
+  }
+
   function renderRecords() {
     const box = el.querySelector('[data-records]');
     const rec = computeRecords(rides);
@@ -106,6 +136,7 @@ export function mountHistory(root, { navigate }) {
   }
 
   function render() {
+    renderTotals();
     renderRecords();
     const list = el.querySelector('[data-list]');
     selectBtn.hidden = !selectable().length;
