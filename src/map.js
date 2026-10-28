@@ -128,7 +128,7 @@ function leafletAdapter(L, container, center, zoom) {
   // Leaflet's default prefix (a link with a flag) is not required; the
   // OpenStreetMap credit is, so it stays.
   map.attributionControl.setPrefix(false);
-  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(map);
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap', crossOrigin: 'anonymous' }).addTo(map);
   const icon = (html) => L.divIcon({ className: '', html: `<div class="ymark">${html}</div>`, iconSize: [0, 0] });
   return {
     kind: 'osm',
