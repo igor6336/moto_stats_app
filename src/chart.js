@@ -159,10 +159,35 @@ export function renderRideChart(box, data, { onScrub } = {}) {
     onScrub?.(t);
   };
   const hide = () => { cursor.style.display = 'none'; tip.hidden = true; onScrub?.(null); };
-  svg.addEventListener('pointerdown', (e) => { svg.setPointerCapture(e.pointerId); show(e); });
-  svg.addEventListener('pointermove', (e) => { if (e.buttons || e.pointerType === 'mouse') show(e); });
-  svg.addEventListener('pointerup', hide);
-  svg.addEventListener('pointercancel', hide);
+
+  // Mouse: follow the pointer.
+  svg.addEventListener('pointermove', (e) => { if (e.pointerType === 'mouse') show(e); });
   svg.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') hide(); });
-  return () => {};
+
+  // Touch: the first 6 px decide. Sideways -> the gesture belongs to the
+  // chart until the finger lifts, however it drifts up or down; vertical ->
+  // the page scrolls. The mark stays where the finger was lifted.
+  let mode = null, x0 = 0, y0 = 0;
+  svg.addEventListener('touchstart', (e) => {
+    const t = e.touches[0];
+    mode = null; x0 = t.clientX; y0 = t.clientY;
+  }, { passive: true });
+  svg.addEventListener('touchmove', (e) => {
+    const t = e.touches[0];
+    if (mode === null) {
+      const dx = Math.abs(t.clientX - x0), dy = Math.abs(t.clientY - y0);
+      if (Math.max(dx, dy) < 6) return; // too little to tell yet
+      mode = dx >= dy * 0.6 ? 'scrub' : 'scroll';
+    }
+    if (mode !== 'scrub') return;
+    e.preventDefault();
+    show(t);
+  }, { passive: false });
+  svg.addEventListener('touchend', (e) => {
+    if (mode === null && e.changedTouches[0]) show(e.changedTouches[0]); // a tap
+  });
+  // A tap anywhere else clears the mark.
+  const outside = (e) => { if (!box.contains(e.target)) hide(); };
+  document.addEventListener('touchstart', outside, { passive: true });
+  return () => document.removeEventListener('touchstart', outside);
 }

@@ -32,6 +32,7 @@ export function mountRide(root, { params, navigate }) {
   let disposeMap = () => {};
   let closeFullscreen = () => {};
   let closeShare = () => {};
+  let disposeChart = () => {};
   let alive = true;
 
   (async () => {
@@ -225,7 +226,7 @@ export function mountRide(root, { params, navigate }) {
       const i = Math.abs(tr.t[lo] - t) < Math.abs(tr.t[hi] - t) ? lo : hi;
       return Math.abs(tr.t[i] - t) <= 3 ? [tr.lat[i], tr.lon[i]] : null;
     };
-    renderRideChart(el.querySelector('[data-chart]'), {
+    disposeChart = renderRideChart(el.querySelector('[data-chart]'), {
       segments,
       approx: approxSpans(gps),
       lean: ride.lean?.series || null,
@@ -235,5 +236,5 @@ export function mountRide(root, { params, navigate }) {
     }, { onScrub: (t) => disposeMap.cursor?.(t === null ? null : posAt(t)) });
   }
 
-  return () => { alive = false; disposeMap(); closeFullscreen(); closeShare(); };
+  return () => { alive = false; disposeMap(); closeFullscreen(); closeShare(); disposeChart(); };
 }

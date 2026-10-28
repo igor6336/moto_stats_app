@@ -177,7 +177,7 @@ export async function drawRoute(container, runs) {
     for (const r of runs) map.addLine(r.coords, runColor(r), r.approx);
     map.addMarker(all[0][0], all[0][1], START_HTML);
     map.addMarker(all.at(-1)[0], all.at(-1)[1], FINISH_HTML);
-    map.fit(all, 20);
+    map.fit(all, 48); // room for the start/finish labels and the expand button
     const dispose = () => map.destroy();
     // Position marker driven by the ride chart; null hides it.
     let cursor = null;
