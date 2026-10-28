@@ -13,3 +13,7 @@ export const LOGIN_EMAIL_DOMAIN = 'riders.moto-stats.app';
 // Yandex Maps JS API v3, free plan. The key is restricted by HTTP Referer
 // to igor6336.github.io in the Yandex developer console. Empty = OSM only.
 export const YANDEX_MAPS_KEY = '6d4ae16c-b2e0-47e8-932b-7d689265b22d';
+
+// Yandex Static API (map under the route on the share card), free plan.
+// A separate key from the JS API one. Empty = card without a map.
+export const YANDEX_STATIC_KEY = 'b09862dd-a95c-4be2-b8f2-1a5ecf3ac6aa';

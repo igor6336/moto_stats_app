@@ -4,19 +4,24 @@ import { zoneColor, APPROX_COLOR } from './map.js';
 import { currentPalette } from './palettes.js';
 import { fmtSpeed, speedUnit, fmtDistance, fmtDuration } from './format.js';
 import { icon } from './icons.js';
+import { YANDEX_STATIC_KEY } from './config.js';
 
 const W = 1080, H = 1920;
 const DISPLAY = "'Unbounded', 'Manrope', sans-serif", TEXT = "'Manrope', sans-serif";
 
-// Web Mercator in pixels of 256-px tiles at zoom z.
-const TILE = 256;
-const mercX = (lon, z) => ((lon + 180) / 360) * TILE * 2 ** z;
-const mercY = (lat, z) => {
-  const r = (lat * Math.PI) / 180;
-  return ((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2) * TILE * 2 ** z;
+// Yandex maps use the ellipsoidal Mercator (EPSG:3395), not Web Mercator:
+// with the wrong one the route drifts off the roads at Moscow latitudes.
+const E = 0.0818191908426;
+const SCALE = 2; // Static API scale: 2x pixels for a sharp card
+const worldPx = (z) => 256 * SCALE * 2 ** z;
+const projX = (lon, z) => ((lon + 180) / 360) * worldPx(z);
+const projY = (lat, z) => {
+  const f = (lat * Math.PI) / 180, es = E * Math.sin(f);
+  const y = Math.log(Math.tan(Math.PI / 4 + f / 2) * ((1 - es) / (1 + es)) ** (E / 2));
+  return (0.5 - y / (2 * Math.PI)) * worldPx(z);
 };
 
-function loadImage(src, ms = 6000) {
+function loadImage(src, ms = 8000) {
   return new Promise((resolve) => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
@@ -27,68 +32,35 @@ function loadImage(src, ms = 6000) {
   });
 }
 
-// OpenStreetMap tiles recoloured dark, with the route fitted in the panel;
-// returns the projection. Without network the panel stays plain.
+// Dark Yandex map (Static API) with the route fitted in the panel; returns
+// the projection. Without network or a key the panel stays plain.
 async function drawMap(g, panel, pts) {
   const lats = pts.map((p) => p[0]), lons = pts.map((p) => p[1]);
+  const lat0 = (Math.min(...lats) + Math.max(...lats)) / 2, lon0 = (Math.min(...lons) + Math.max(...lons)) / 2;
   const pad = 150;
   let z = 18;
   for (; z > 3; z--) {
-    const w = mercX(Math.max(...lons), z) - mercX(Math.min(...lons), z);
-    const h = mercY(Math.min(...lats), z) - mercY(Math.max(...lats), z);
+    const w = projX(Math.max(...lons), z) - projX(Math.min(...lons), z);
+    const h = projY(Math.min(...lats), z) - projY(Math.max(...lats), z);
     if (w <= panel.w - 2 * pad && h <= panel.h - 2 * pad) break;
   }
-  const cx = (mercX(Math.max(...lons), z) + mercX(Math.min(...lons), z)) / 2;
-  const cy = (mercY(Math.max(...lats), z) + mercY(Math.min(...lats), z)) / 2;
-  const ox = panel.x + panel.w / 2 - cx, oy = panel.y + panel.h / 2 - cy;
-  const xy = (p) => [mercX(p[1], z) + ox, mercY(p[0], z) + oy];
+  const cx = projX(lon0, z), cy = projY(lat0, z);
+  const xy = (p) => [panel.x + panel.w / 2 + projX(p[1], z) - cx, panel.y + panel.h / 2 + projY(p[0], z) - cy];
 
-  // Tiles go to a separate canvas first: recolouring reads its pixels.
-  const m = document.createElement('canvas');
-  m.width = panel.w; m.height = panel.h;
-  const mg = m.getContext('2d');
-  const tiles = [];
-  const n = 2 ** z;
-  for (let tx = Math.floor((panel.x - ox) / TILE); tx <= Math.floor((panel.x + panel.w - ox) / TILE); tx++) {
-    for (let ty = Math.floor((panel.y - oy) / TILE); ty <= Math.floor((panel.y + panel.h - oy) / TILE); ty++) {
-      if (ty < 0 || ty >= n) continue;
-      tiles.push(loadImage(`https://tile.openstreetmap.org/${z}/${((tx % n) + n) % n}/${ty}.png`)
-        .then((img) => img && mg.drawImage(img, tx * TILE + ox - panel.x, ty * TILE + oy - panel.y, TILE, TILE)));
-    }
-  }
-  const drawn = (await Promise.all(tiles)).some(Boolean);
-  if (drawn) darken(mg, panel.w, panel.h);
+  const size = `${Math.round(panel.w / SCALE)},${Math.round(panel.h / SCALE)}`;
+  const img = YANDEX_STATIC_KEY ? await loadImage(`https://static-maps.yandex.ru/v1?ll=${lon0.toFixed(6)},${lat0.toFixed(6)}`
+    + `&z=${z}&size=${size}&scale=${SCALE}&theme=dark&lang=ru_RU&apikey=${YANDEX_STATIC_KEY}`) : null;
   g.save();
   roundRect(g, panel.x, panel.y, panel.w, panel.h, 44);
   g.clip();
   g.fillStyle = '#0e1116';
   g.fillRect(panel.x, panel.y, panel.w, panel.h);
-  if (drawn) g.drawImage(m, panel.x, panel.y);
-  if (drawn) {
-    g.fillStyle = 'rgba(255,255,255,.45)';
-    g.font = `600 20px ${TEXT}`;
-    g.textAlign = 'right';
-    g.fillText('© участники OpenStreetMap', panel.x + panel.w - 28, panel.y + panel.h - 24);
-    g.textAlign = 'left';
-  }
+  // Drawn as delivered: the Yandex logo and copyright must stay visible.
+  if (img) g.drawImage(img, panel.x, panel.y, panel.w, panel.h);
   g.restore();
   g.strokeStyle = 'rgba(255,255,255,.08)'; g.lineWidth = 2;
   roundRect(g, panel.x, panel.y, panel.w, panel.h, 44); g.stroke();
   return xy;
-}
-
-// Light map -> dark grey-blue. OSM is light with roads lightest, so the
-// brightness is kept in order and stretched over its upper part: water and
-// buildings go darkest, land mid, roads lightest.
-function darken(mg, w, h) {
-  const img = mg.getImageData(0, 0, w, h);
-  const d = img.data;
-  for (let i = 0; i < d.length; i += 4) {
-    const l = (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]) / 255;
-    const v = 12 + Math.max(0, Math.min(1, (l - 0.72) / 0.28)) ** 1.4 * 78;
-    d[i] = v * 0.86; d[i + 1] = v * 0.92; d[i + 2] = v * 1.12;
-  }
-  mg.putImageData(img, 0, 0);
 }
 
 // A label in a dark pill above (or else below) a point, skipping places
