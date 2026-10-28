@@ -1,6 +1,7 @@
 import { listRides, getGpsData, deleteRide } from '../storage.js';
 import { computeRecords, RECORD_METRICS } from '../records.js';
 import { TOTAL_PERIODS, computeTotals, seasonByMonth } from '../totals.js';
+import { skeleton, countUp, setMorphSource } from '../motion.js';
 import { prepareTrack } from '../algo/stats.js';
 import { routeThumb } from '../map.js';
 import { getMe } from '../social/client.js';
@@ -14,7 +15,7 @@ export function mountHistory(root, { navigate }) {
     <div class="title-row"><h1>История</h1><button class="btn small ghost" data-select hidden>Выбрать</button></div>
     <div data-totals></div>
     <div data-records></div>
-    <div class="list" data-list><div class="loading">Загрузка</div></div>
+    <div class="list" data-list>${skeleton('rows', 4)}</div>
   </section>`);
   root.appendChild(el);
   let alive = true;
@@ -96,6 +97,7 @@ export function mountHistory(root, { navigate }) {
   }
 
   let totalsPeriod = 'season';
+  let countedRecords = false; // count up once per visit, not on every re-render
   const MONTHS = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
   // Time in the saddle: "12 ч 05 мин", or "45 мин" under an hour.
   const hours = (s) => {
@@ -121,6 +123,7 @@ export function mountHistory(root, { navigate }) {
         <i style="height:${Math.max(3, (d / maxM) * 100).toFixed(0)}%"></i><span>${MONTHS[i]}</span></div>`).join('')}</div>` : ''}
     </div>`;
     box.querySelectorAll('[data-tp]').forEach((b) => b.addEventListener('click', () => { totalsPeriod = b.dataset.tp; renderTotals(); }));
+    countUp(box.querySelectorAll('.totals-grid b'));
   }
 
   function renderRecords() {
@@ -133,6 +136,7 @@ export function mountHistory(root, { navigate }) {
         <span>${m.label}</span><b>${m.fmt(rec[m.id].value)}</b><small>${new Date(rec[m.id].ride.startedAt).toLocaleDateString('ru-RU')}</small>
       </button>`).join('')}</div></div>` : '';
     box.querySelectorAll('[data-ride]').forEach((b) => b.addEventListener('click', () => navigate(`#/ride/${b.dataset.ride}`)));
+    if (!countedRecords) { countedRecords = true; countUp(box.querySelectorAll('.rec b')); }
   }
 
   function render() {
@@ -168,7 +172,11 @@ export function mountHistory(root, { navigate }) {
           ${selecting ? '' : `<span class="ri-chev">${icon('chevron-right')}</span>`}
         </button>`);
       item.addEventListener('click', () => {
-        if (!selecting) { navigate(locked ? '#/record' : `#/ride/${r.id}`); return; }
+        if (!selecting) {
+          if (!locked) setMorphSource(item.querySelector('.ri-thumb'));
+          navigate(locked ? '#/record' : `#/ride/${r.id}`);
+          return;
+        }
         if (locked) return;
         if (selected.has(r.id)) selected.delete(r.id); else selected.add(r.id);
         render();
@@ -187,7 +195,7 @@ export function mountHistory(root, { navigate }) {
       const tr = prepareTrack((await getGpsData(id)).gps);
       const svg = routeThumb(tr.lat.map((la, i) => [la, tr.lon[i]]));
       thumbCache.set(id, svg || icon('route'));
-      if (svg && box.isConnected) box.innerHTML = svg;
+      if (svg && box.isConnected) { box.innerHTML = svg; box.classList.add('draw'); } // drawn in once, not on re-renders
     }
   }
 

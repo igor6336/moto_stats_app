@@ -10,6 +10,7 @@ import { escapeHtml, fmtSpeed, speedUnit } from '../format.js';
 import { h, toast } from '../ui.js';
 import { icon } from '../icons.js';
 import { routeAction, routeSubtitle } from '../social/route.js';
+import { skeleton } from '../motion.js';
 
 const sec = (v) => (v ? `${v.toFixed(2)} с` : '—');
 
@@ -32,7 +33,7 @@ function statsGrid(s) {
 }
 
 export function mountRider(root, { params, navigate }) {
-  const el = h('<section class="screen rider"><div class="loading">Загрузка…</div></section>');
+  const el = h(`<section class="screen rider">${skeleton('ride')}</section>`);
   root.appendChild(el);
   let alive = true;
   let map = null;

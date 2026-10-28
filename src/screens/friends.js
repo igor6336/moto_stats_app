@@ -12,6 +12,7 @@ import { escapeHtml, fmtSpeed, speedUnit } from '../format.js';
 import { h, toast, actionSheet } from '../ui.js';
 import { icon } from '../icons.js';
 import { routeAction, routeSubtitle } from '../social/route.js';
+import { skeleton } from '../motion.js';
 
 
 export function mountFriends(root, { navigate }) {
@@ -54,7 +55,7 @@ export function mountFriends(root, { navigate }) {
       <input name="code" placeholder="Код друга" autocapitalize="characters" autocorrect="off" spellcheck="false" required>
       <button class="btn primary" type="submit" aria-label="Добавить">${icon('user-plus')}</button>
     </form>
-    <div data-lists><div class="loading">Загрузка…</div></div>`;
+    <div data-lists>${skeleton('rows', 3)}</div>`;
 
   body.querySelector('[data-copy]').addEventListener('click', () => copyCode(me.public_id));
   body.querySelector('[data-share]').addEventListener('change', async (e) => {

@@ -5,6 +5,7 @@ import { computeSummary, routeByZone, prepareTrack, approxSpans } from '../algo/
 import { bestAccelerationSpans } from '../algo/accel.js';
 import { renderRideChart } from '../chart.js';
 import { rideCard, openSharePreview } from '../share.js';
+import { skeleton, countUp, flyMorphTo, confetti } from '../motion.js';
 import { exportRideRaw } from '../export.js';
 import { getSettings } from '../settings.js';
 import { drawRoute, zoneColor, APPROX_COLOR } from '../map.js';
@@ -27,7 +28,7 @@ function leanHint(ride) {
 }
 
 export function mountRide(root, { params, navigate }) {
-  const el = h('<section class="screen ride"><div class="loading">Загрузка…</div></section>');
+  const el = h(`<section class="screen ride">${skeleton('ride')}</section>`);
   root.appendChild(el);
   let disposeMap = () => {};
   let closeFullscreen = () => {};
@@ -164,10 +165,19 @@ export function mountRide(root, { params, navigate }) {
     });
     const runs = routeByZone(gps, zones);
     const mapBox = el.querySelector('[data-map]');
-    drawRoute(mapBox, runs).then((d) => {
+    drawRoute(mapBox, runs, { animate: true }).then((d) => {
       if (alive) disposeMap = d; else d();
     });
     drawChart(ride, s, gps);
+    flyMorphTo(mapBox);
+    countUp(el.querySelectorAll('.grid.stats .value'));
+    // Right after a recording: celebrate a new record once.
+    let celebrate = null;
+    try { celebrate = sessionStorage.getItem('celebrate'); sessionStorage.removeItem('celebrate'); } catch { /* private mode */ }
+    if (celebrate === ride.id && records.length) {
+      el.querySelector('.record-banner')?.classList.add('celebrate');
+      confetti();
+    }
     el.querySelector('[data-share-card]').addEventListener('click', async (e) => {
       const btn = e.currentTarget;
       btn.disabled = true;

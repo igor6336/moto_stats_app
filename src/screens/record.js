@@ -41,6 +41,8 @@ const gaugeSvg = (theme) => `<svg class="gauge" viewBox="0 0 200 180" aria-hidde
   <path class="track" d="${ARC}" fill="none" stroke-width="10" stroke-linecap="round"/>
   <path class="ticks" d="M 49.1 150.9 A 72 72 0 1 1 150.9 150.9" fill="none" stroke-width="5" stroke-dasharray="1.5 15.46"/>
   <g class="bar-glow"><g mask="url(#gauge-mask)" fill="none" stroke-width="14">${gaugeSegments(gaugeStops(currentPalette(), theme))}</g></g>
+  <line class="peak" data-peak x1="0" y1="0" x2="0" y2="0" opacity="0"/>
+  <text class="peak-lbl" data-peak-lbl text-anchor="middle" x="100" y="100"></text>
 </svg>`;
 const UNLOCK_HOLD_MS = 1500;
 
@@ -138,10 +140,41 @@ export function mountRecord(root, { navigate }) {
     }
     $('[data-unit]').textContent = speedUnit();
     const full = getSettings().units === 'mph' ? 150 : 240;
-    const frac = fresh ? Math.max(0, Math.min(1, speedValue(recorder.lastFix.speed) / full)) : 0;
+    gaugeTarget = fresh ? Math.max(0, Math.min(1, speedValue(recorder.lastFix.speed) / full)) : 0;
+    if (!gaugeFrame) gaugeFrame = requestAnimationFrame(springGauge);
+
+    // Max of this recording: a thin mark on the arc with its value.
+    const peak = $('[data-peak]'), lbl = $('[data-peak-lbl]');
+    const max = recorder.recording && recorder.live ? speedValue(recorder.live.maxSpeed) : 0;
+    if (max > 5) {
+      const a = (135 + 270 * Math.min(1, max / full)) * (Math.PI / 180);
+      peak.setAttribute('x1', 100 + 76 * Math.cos(a)); peak.setAttribute('y1', 100 + 76 * Math.sin(a));
+      peak.setAttribute('x2', 100 + 93 * Math.cos(a)); peak.setAttribute('y2', 100 + 93 * Math.sin(a));
+      peak.setAttribute('opacity', '1');
+      lbl.setAttribute('x', 100 + 62 * Math.cos(a)); lbl.setAttribute('y', 100 + 62 * Math.sin(a) + 3);
+      lbl.textContent = Math.round(max);
+    } else {
+      peak.setAttribute('opacity', '0');
+      lbl.textContent = '';
+    }
+  }
+
+  // The arc follows the speed on a slightly bouncy spring: GPS speed comes
+  // once a second, the spring fills in the movement between fixes.
+  let gaugeTarget = 0, gaugeShown = 0, gaugeVel = 0, gaugeFrame = 0, gaugeLast = 0;
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function springGauge(now) {
+    const dt = Math.min(0.05, gaugeLast ? (now - gaugeLast) / 1000 : 0.016);
+    gaugeLast = now;
+    gaugeVel += ((gaugeTarget - gaugeShown) * 90 - gaugeVel * 13) * dt;
+    gaugeShown += gaugeVel * dt;
+    if (reduce) { gaugeShown = gaugeTarget; gaugeVel = 0; }
+    const f = Math.max(0, Math.min(1, gaugeShown));
     const bar = $('[data-gauge]');
-    bar.setAttribute('stroke-dashoffset', String(ARC_LEN * (1 - frac)));
-    bar.setAttribute('opacity', frac > 0.004 ? '1' : '0');
+    bar.setAttribute('stroke-dashoffset', String(ARC_LEN * (1 - f)));
+    bar.setAttribute('opacity', f > 0.004 ? '1' : '0');
+    if (Math.abs(gaugeTarget - gaugeShown) > 0.0005 || Math.abs(gaugeVel) > 0.0005) gaugeFrame = requestAnimationFrame(springGauge);
+    else { gaugeFrame = 0; gaugeLast = 0; }
   }
 
   function updateStats() {
@@ -200,7 +233,10 @@ export function mountRecord(root, { navigate }) {
       const stop = h(`<button class="btn danger xl hold">${icon('square')}<span class="stack">Стоп<small>удерживайте</small></span></button>`);
       longPress(stop, STOP_HOLD_MS, async () => {
         const id = await recorder.stop();
-        if (id) navigate(`#/ride/${id}`);
+        if (id) {
+          try { sessionStorage.setItem('celebrate', id); } catch { /* private mode */ }
+          navigate(`#/ride/${id}`);
+        }
       });
       const black = h(`<button class="btn">${icon('moon')}Чёрный режим</button>`);
       black.addEventListener('click', () => showOverlay('black'));
@@ -284,6 +320,7 @@ export function mountRecord(root, { navigate }) {
   updateSpeed();
 
   return () => {
+    cancelAnimationFrame(gaugeFrame);
     hideOverlay();
     recorder.removeEventListener('change', onChange);
     recorder.removeEventListener('gps', onGps);

@@ -87,10 +87,12 @@ function yandexAdapter(ym, container, center, zoom) {
   return {
     kind: 'yandex',
     addLine(coords, color, dashed) {
-      map.addChild(new YMapFeature({
+      const f = new YMapFeature({
         geometry: { type: 'LineString', coordinates: coords.map(ll) },
         style: { stroke: [{ color, width: 4, ...(dashed ? { dash: [6, 6] } : {}) }] },
-      }));
+      });
+      map.addChild(f);
+      return { setCoords: (c) => f.update({ geometry: { type: 'LineString', coordinates: c.map(ll) } }) };
     },
     addMarker(lat, lon, html, onClick) {
       // Yandex puts the element's top-left corner at the point; the inner
@@ -132,7 +134,10 @@ function leafletAdapter(L, container, center, zoom) {
   const icon = (html) => L.divIcon({ className: '', html: `<div class="ymark">${html}</div>`, iconSize: [0, 0] });
   return {
     kind: 'osm',
-    addLine(coords, color, dashed) { L.polyline(coords, { color, weight: 4, opacity: 0.95, dashArray: dashed ? '6 8' : null }).addTo(map); },
+    addLine(coords, color, dashed) {
+      const l = L.polyline(coords, { color, weight: 4, opacity: 0.95, dashArray: dashed ? '6 8' : null }).addTo(map);
+      return { setCoords: (c) => l.setLatLngs(c) };
+    },
     addMarker(lat, lon, html, onClick) {
       const m = L.marker([lat, lon], { icon: icon(html) }).addTo(map);
       if (onClick) m.on('click', onClick);
@@ -166,7 +171,30 @@ export async function createMap(container, { center = [55.75, 37.62], zoom = 10 
   }
 }
 
-export async function drawRoute(container, runs) {
+// Reveals the route from start to finish over `ms`: each run's line is
+// added when the drawing reaches it and grows point by point.
+function animateRoute(map, runs, ms, alive, done) {
+  const total = runs.reduce((a, r) => a + r.coords.length, 0);
+  const lines = [];
+  const t0 = performance.now();
+  const step = (now) => {
+    if (!alive()) return; // the screen was left while drawing
+    const k = Math.min(1, (now - t0) / ms);
+    let left = Math.ceil(total * (1 - (1 - k) ** 2)); // ease out
+    runs.forEach((r, i) => {
+      const n = Math.min(r.coords.length, Math.max(0, left));
+      left -= r.coords.length;
+      if (n < 2) return;
+      const c = n === r.coords.length ? r.coords : r.coords.slice(0, n);
+      if (!lines[i]) lines[i] = { line: map.addLine(c, runColor(r), r.approx), n };
+      else if (lines[i].n !== n) { lines[i].line.setCoords(c); lines[i].n = n; }
+    });
+    if (k < 1) requestAnimationFrame(step); else done();
+  };
+  requestAnimationFrame(step);
+}
+
+export async function drawRoute(container, runs, { animate = false } = {}) {
   const all = runs.flatMap((r) => r.coords);
   if (all.length < 2) {
     container.innerHTML = '<div class="map-empty">Нет точек маршрута</div>';
@@ -174,11 +202,13 @@ export async function drawRoute(container, runs) {
   }
   try {
     const map = await createMap(container, { center: all[0], zoom: 13 });
-    for (const r of runs) map.addLine(r.coords, runColor(r), r.approx);
     map.addMarker(all[0][0], all[0][1], START_HTML);
-    map.addMarker(all.at(-1)[0], all.at(-1)[1], FINISH_HTML);
     map.fit(all, 48); // room for the start/finish labels and the expand button
-    const dispose = () => map.destroy();
+    let alive = true;
+    const finish = () => map.addMarker(all.at(-1)[0], all.at(-1)[1], FINISH_HTML);
+    if (animate && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) animateRoute(map, runs, 1100, () => alive, finish);
+    else { for (const r of runs) map.addLine(r.coords, runColor(r), r.approx); finish(); }
+    const dispose = () => { alive = false; map.destroy(); };
     // Position marker driven by the ride chart; null hides it.
     let cursor = null;
     dispose.cursor = (p) => {
@@ -234,6 +264,6 @@ export function routeThumb(points, size = 60) {
   const [sx, sy] = xy(0), [ex, ey] = xy(pts.length - 1);
   return `<svg viewBox="0 0 ${size} ${size}" aria-hidden="true">
     <defs><linearGradient id="tg" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="${size}" y2="${size}">${thumbStops()}</linearGradient></defs>
-    <polyline points="${line}" fill="none" stroke="url(#tg)" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>
+    <polyline class="thumb-line" pathLength="1" points="${line}" fill="none" stroke="url(#tg)" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>
     <circle cx="${sx}" cy="${sy}" r="3" fill="#34d399"/><circle cx="${ex}" cy="${ey}" r="3" fill="#f87171"/></svg>`;
 }

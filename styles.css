@@ -213,6 +213,28 @@ h2 {
 /* ------------------------------------------------------------ motion */
 .screen { animation: screen-in .32s var(--ease) both; }
 @keyframes screen-in { from { opacity: 0; transform: translateY(10px); } }
+/* Between tabs and into detail screens the new screen slides from the side
+   it comes from (set by the router). */
+#view[data-dir="next"] > .screen { animation: screen-next .34s var(--ease) both; }
+#view[data-dir="back"] > .screen { animation: screen-back .34s var(--ease) both; }
+@keyframes screen-next { from { opacity: 0; transform: translateX(28px); } }
+@keyframes screen-back { from { opacity: 0; transform: translateX(-28px); } }
+
+/* Loading placeholders. */
+.skel { display: flex; flex-direction: column; gap: 10px; }
+.skel-row { display: flex; gap: 12px; align-items: center; padding: 12px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--surface); }
+.skel-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+.sk { border-radius: 8px; background: linear-gradient(90deg, var(--line) 0%, var(--line-2) 45%, var(--line) 90%); background-size: 250% 100%; animation: shimmer 1.2s linear infinite; }
+@keyframes shimmer { from { background-position: 120% 0; } to { background-position: -130% 0; } }
+
+/* History thumbnail flying into the ride map, and the record confetti. */
+.morph-fly { position: fixed; z-index: 120; border-radius: 14px; overflow: hidden; background: var(--panel); pointer-events: none; }
+.morph-fly svg { width: 100%; height: 100%; display: block; }
+.confetti { position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: 140; pointer-events: none; }
+.record-banner.celebrate { animation: pop-big .7s var(--ease) both; }
+.record-banner.celebrate > .icon { animation: shine 1.2s .25s ease-out; }
+@keyframes pop-big { 0% { transform: scale(.6); opacity: 0; } 55% { transform: scale(1.05); opacity: 1; } 100% { transform: none; } }
+@keyframes shine { 30% { filter: drop-shadow(0 0 14px rgba(245, 166, 35, .9)); transform: rotate(-12deg) scale(1.15); } }
 
 /* Cards rise in one after another. */
 .list > *, .grid.stats > *, .board > *, .kv, .zones > * { animation: rise .4s var(--ease) both; }
@@ -355,7 +377,8 @@ h2 {
 .gauge { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
 .gauge .track { stroke: var(--gauge-track); }
 .gauge .ticks { stroke: var(--gauge-ticks); }
-.gauge .bar { transition: stroke-dashoffset .8s var(--ease); }
+.gauge .peak { stroke: var(--text); stroke-width: 3; stroke-linecap: round; transition: opacity .3s; }
+.gauge .peak-lbl { fill: var(--muted); font: 800 10px var(--font); }
 .gauge .bar-glow { filter: drop-shadow(0 0 10px var(--gauge-glow)); }
 .speed-inner { position: relative; text-align: center; margin-top: 6%; }
 .speed {
@@ -783,3 +806,13 @@ form .btn + .btn { margin-top: 10px; }
 .mbar.none i { background: var(--line-2); }
 .mbar span { color: var(--faint); font: 700 9.5px var(--font); }
 .totals .seg { margin-bottom: 0; }
+
+/* History thumbnails draw their route in when they first load. */
+.ri-thumb.draw .thumb-line { stroke-dasharray: 1; stroke-dashoffset: 1; animation: draw-line .9s .1s var(--ease) forwards; }
+.ri-thumb.draw circle:last-of-type { opacity: 0; animation: fade-in-keep .3s .9s forwards; }
+@keyframes draw-line { to { stroke-dashoffset: 0; } }
+@keyframes fade-in-keep { to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .ri-thumb.draw .thumb-line { stroke-dasharray: none; stroke-dashoffset: 0; }
+  .ri-thumb.draw circle:last-of-type { opacity: 1; }
+}

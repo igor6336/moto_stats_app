@@ -4,6 +4,7 @@ import { CATEGORIES, PERIODS, computeLeaderboard } from '../algo/leaderboard.js'
 import { avatarHtml } from '../social/avatar.js';
 import { escapeHtml, fmtSpeed, speedUnit, fmtDistance, fmtDuration } from '../format.js';
 import { h } from '../ui.js';
+import { skeleton } from '../motion.js';
 
 let category = 'maxSpeed';
 let period = 'month';
@@ -39,7 +40,7 @@ export function mountLeaders(root, { navigate }) {
   body.innerHTML = `
     <div class="chips" data-cats>${CATEGORIES.map((c) => `<button data-cat="${c.id}">${c.label}</button>`).join('')}</div>
     <div class="seg" data-periods>${PERIODS.map((p) => `<button data-period="${p.id}">${p.label}</button>`).join('')}</div>
-    <div class="board" data-board><div class="loading">Загрузка…</div></div>
+    <div class="board" data-board>${skeleton('rows', 4)}</div>
     <p class="hint">Среди вас и ваших друзей. «Лучшая средняя» — поездки от 10 км.
       Разгоны считаются по GPS (1 раз в секунду), точность около ±0,3–0,6 с. Замеры — только на закрытой площадке.</p>`;
 

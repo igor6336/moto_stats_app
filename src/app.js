@@ -27,6 +27,8 @@ const routes = [
 
 const view = document.getElementById('view');
 let unmount = () => {};
+const TAB_ORDER = ['record', 'history', 'friends', 'leaders', 'settings'];
+let lastDepth = null;
 
 function navigate(hash) {
   if (location.hash === hash) render();
@@ -38,6 +40,11 @@ function render() {
   const route = routes.find((r) => r.re.test(hash)) || routes[0];
   const m = hash.match(route.re) || [];
   const params = Object.fromEntries((route.keys || []).map((k, i) => [k, decodeURIComponent(m[i + 1])]));
+  // Slide direction: tabs left to right, detail screens deeper than tabs.
+  const detail = !!route.keys || route.mount === mountAccount;
+  const depth = TAB_ORDER.indexOf(route.tab) * 10 + (detail ? 5 : 0);
+  view.dataset.dir = lastDepth === null || depth === lastDepth ? '' : depth > lastDepth ? 'next' : 'back';
+  lastDepth = depth;
   unmount();
   view.innerHTML = '';
   view.scrollTop = 0;
