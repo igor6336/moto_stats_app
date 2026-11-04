@@ -115,7 +115,7 @@ export function mountProfile(root, { navigate }) {
     const rec = computeRecords(rides);
     const items = RECORD_METRICS.filter((m) => rec[m.id]);
     box.innerHTML = items.length ? `<h2>Личные рекорды</h2><div class="records">
-      <div class="records-grid">${items.map((m) => `<button class="rec" data-ride="${rec[m.id].ride.id}">
+      <div class="records-grid">${items.map((m) => `<button class="rec" data-ride="${escapeHtml(rec[m.id].ride.id)}">
         <span>${m.label}</span><b>${m.fmt(rec[m.id].value)}</b><small>${new Date(rec[m.id].ride.startedAt).toLocaleDateString('ru-RU')}</small>
       </button>`).join('')}</div></div>` : '';
     box.querySelectorAll('[data-ride]').forEach((b) => b.addEventListener('click', () => navigate(`#/ride/${b.dataset.ride}`)));

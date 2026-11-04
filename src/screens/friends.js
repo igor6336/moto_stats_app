@@ -48,6 +48,10 @@ export function mountFriends(root, { navigate }) {
       <span>Показывать меня друзьям<small>Только пока приложение открыто</small></span>
       <input type="checkbox" data-share ${sharingEnabled() ? 'checked' : ''}>
     </label>
+    <div class="banner warn" data-share-error hidden>
+      Публикация остановлена на этом устройстве, но удаление последней позиции с сервера не подтверждено.
+      <button class="btn small" data-share-retry>Повторить отключение</button>
+    </div>
     <div class="code-box">
       <span>Ваш код</span><b>${escapeHtml(me.public_id)}</b>
       <div class="row">
@@ -63,13 +67,25 @@ export function mountFriends(root, { navigate }) {
 
   body.querySelector('[data-copy]').addEventListener('click', () => copyCode(me.public_id));
   body.querySelector('[data-invite]').addEventListener('click', () => shareInvite(me));
-  body.querySelector('[data-share]').addEventListener('change', async (e) => {
+  const shareInput = body.querySelector('[data-share]');
+  const shareRetry = body.querySelector('[data-share-retry]');
+  async function changeSharing(on) {
+    shareInput.disabled = shareRetry.disabled = true;
     try {
-      await setSharing(e.target.checked);
+      await setSharing(on);
+      body.querySelector('[data-share-error]').hidden = true;
       updateMarkers();
-      toast(e.target.checked ? 'Друзья видят вас, пока приложение открыто' : 'Режим невидимки');
-    } catch (err) { toast(humanError(err)); }
-  });
+      toast(on ? 'Друзья видят вас, пока приложение открыто' : 'Режим невидимки');
+    } catch (err) {
+      body.querySelector('[data-share-error]').hidden = on;
+      toast(humanError(err));
+    } finally {
+      shareInput.checked = sharingEnabled();
+      shareInput.disabled = shareRetry.disabled = false;
+    }
+  }
+  shareInput.addEventListener('change', () => changeSharing(shareInput.checked));
+  shareRetry.addEventListener('click', () => changeSharing(false));
   body.querySelector('[data-add]').addEventListener('submit', async (e) => {
     e.preventDefault();
     const input = e.target.code;

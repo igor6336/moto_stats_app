@@ -3,6 +3,7 @@
 import {
   RAW_FORMAT, RAW_VERSION, GPS_COLUMNS, MOTION_COLUMNS, ORIENT_COLUMNS, EVENT_COLUMNS, UNITS,
 } from './algo/schema.js';
+import { validateImport } from './algo/import.js';
 import { computeSummary } from './algo/stats.js';
 import { getRide, listRides, putRide, getGpsChunks, getGpsData, forEachSensorChunk, writeChunk } from './storage.js';
 import { fileStamp } from './format.js';
@@ -86,20 +87,13 @@ async function storeRide(ride, gps, events, motion = [], orient = []) {
 }
 
 export async function importFile(file) {
-  const data = JSON.parse(await file.text());
-  if (data.format === RAW_FORMAT) {
-    const added = await storeRide(data.ride, data.gps || [], data.events || [], data.motion || [], data.orient || []);
-    return { added: added ? 1 : 0, skipped: added ? 0 : 1 };
+  const entries = validateImport(JSON.parse(await file.text()));
+  let added = 0, skipped = 0;
+  for (const { ride, gps, events, motion, orient } of entries) {
+    if (await storeRide(ride, gps, events, motion, orient)) added++;
+    else skipped++;
   }
-  if (data.format === BACKUP_FORMAT) {
-    let added = 0, skipped = 0;
-    for (const item of data.rides || []) {
-      if (await storeRide(item.ride, item.gps || [], item.events || [])) added++;
-      else skipped++;
-    }
-    return { added, skipped };
-  }
-  throw new Error('неизвестный формат файла');
+  return { added, skipped };
 }
 
 // iOS: the share sheet is the reliable way to save a file from a

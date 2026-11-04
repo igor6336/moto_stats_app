@@ -1,7 +1,7 @@
 // App shell is served from cache so the app starts without network.
 // Bump VERSION (and APP_VERSION in src/version.js) on every deploy: the new
 // worker re-downloads the whole shell, so files never mix across versions.
-const VERSION = '0.19.0';
+const VERSION = '0.19.1';
 const SHELL_CACHE = `moto-shell-${VERSION}`;
 const CDN_CACHE = 'moto-cdn-v1';
 
@@ -34,6 +34,7 @@ const SHELL = [
   './src/screens/ride.js',
   './src/screens/settings.js',
   './src/algo/schema.js',
+  './src/algo/import.js',
   './src/algo/geo.js',
   './src/algo/stats.js',
   './src/algo/calibration.js',

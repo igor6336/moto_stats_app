@@ -183,14 +183,14 @@ export function mountRide(root, { params, navigate }) {
       <summary>Качество данных${icon('chevron-right')}</summary>
       <div class="kv">
         <div><span>Точек GPS</span><b>${s.points} из ${gps.length}</b></div>
-        <div><span>GPS частота</span><b>${q.gps ? `${q.gps.hz.toFixed(2)} Гц, пауз >2 с: ${q.gps.gaps}` : '—'}</b></div>
-        <div><span>Датчики движения</span><b>${q.motion ? `${q.motion.hz.toFixed(0)} Гц, пауз: ${q.motion.gaps}, макс. ${q.motion.maxDtMs} мс` : '—'}</b></div>
+        <div><span>GPS частота</span><b>${q.gps ? `${q.gps.hz.toFixed(2)} Гц, пауз >2 с: ${esc(q.gps.gaps)}` : '—'}</b></div>
+        <div><span>Датчики движения</span><b>${q.motion ? `${q.motion.hz.toFixed(0)} Гц, пауз: ${esc(q.motion.gaps)}, макс. ${esc(q.motion.maxDtMs)} мс` : '—'}</b></div>
         <div><span>Потери сигнала GPS</span><b>${s.gaps} (${fmtDuration(s.gapTime)})</b></div>
         <div><span>Слабый GPS (приблизительно)</span><b>${s.approxTime ? `${fmtDuration(s.approxTime)}, ${fmtDistance(s.approxDistance)}` : '—'}</b></div>
         <div><span>Без GPS</span><b>${fmtDuration(s.untrackedTime + s.gapTime)}</b></div>
         <div><span>Пик скорости без сглаживания</span><b>${fmtSpeed(s.maxSpeedRaw)} ${u}</b></div>
         <div><span>Калибровка</span><b>${cal}</b></div>
-        <div><span>Записей датчиков</span><b>${ride.sensorsDeleted ? 'удалены' : `${ride.counts?.motion ?? '—'} (~${fmtBytes(sensorBytes(ride))})`}</b></div>
+        <div><span>Записей датчиков</span><b>${ride.sensorsDeleted ? 'удалены' : `${esc(ride.counts?.motion ?? '—')} (~${fmtBytes(sensorBytes(ride))})`}</b></div>
       </div>
       </details>
       <label class="switch-row">

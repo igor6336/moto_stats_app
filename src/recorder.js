@@ -26,7 +26,7 @@ const emptyBuffers = () => ({ gps: [], motion: [], orient: [], events: [] });
 class Recorder extends EventTarget {
   constructor() {
     super();
-    this.state = 'idle'; // idle | ready | recording | stopping
+    this.state = 'idle'; // idle | ready | recording | stopping | save-error
     this.status = { motion: 'off', orient: 'off', gps: 'off', permission: null, gpsError: null, storageError: null };
     this.motionHz = 0;
     this.orientHz = 0;
@@ -51,9 +51,9 @@ class Recorder extends EventTarget {
     document.addEventListener('visibilitychange', () => {
       if (this.state !== 'recording') return;
       this.logEvent('visibility', document.visibilityState);
-      if (document.visibilityState === 'hidden') this.flush();
+      if (document.visibilityState === 'hidden') this.flush().catch(() => {});
     });
-    window.addEventListener('pagehide', () => { if (this.state === 'recording') this.flush(); });
+    window.addEventListener('pagehide', () => { if (this.state === 'recording') this.flush().catch(() => {}); });
     setInterval(() => this.tick(), 1000);
   }
 
@@ -247,12 +247,13 @@ class Recorder extends EventTarget {
     this.q = { gps: createRateTracker(2000), motion: createRateTracker(100), orient: createRateTracker(100) };
     this.state = 'recording';
     this.logEvent('start', { calibrated: !!pending });
-    this.flushTimer = setInterval(() => this.flush(), FLUSH_MS);
+    this.flushTimer = setInterval(() => this.flush().catch(() => {}), FLUSH_MS);
     this.emit('change');
   }
 
   flush() {
-    this.flushChain = this.flushChain.then(() => this.doFlush());
+    // Each caller sees its failure, but a rejected write must not poison retries.
+    this.flushChain = this.flushChain.catch(() => {}).then(() => this.doFlush());
     return this.flushChain;
   }
 
@@ -262,7 +263,7 @@ class Recorder extends EventTarget {
     const data = this.buf;
     if (!data.gps.length && !data.motion.length && !data.orient.length && !data.events.length) return;
     this.buf = emptyBuffers();
-    const prevCounts = { ...ride.counts };
+    const checkpoint = { counts: { ...ride.counts }, quality: ride.quality, lastFlushAt: ride.lastFlushAt, chunks: ride.chunks };
     ride.counts.gps += data.gps.length;
     ride.counts.motion += data.motion.length;
     ride.counts.orient += data.orient.length;
@@ -277,35 +278,49 @@ class Recorder extends EventTarget {
     } catch (e) {
       console.error('flush failed', e);
       // Put the rows back so the next flush retries them.
-      ride.counts = prevCounts;
+      Object.assign(ride, checkpoint);
       for (const k of Object.keys(data)) this.buf[k] = data[k].concat(this.buf[k]);
       this.status.storageError = String(e?.message || e);
       this.emit('change');
+      throw e;
     }
   }
 
   async stop() {
-    if (this.state !== 'recording') return null;
-    this.logEvent('stop');
+    if (this.state !== 'recording' && this.state !== 'save-error') return null;
+    if (this.state === 'recording') {
+      this.logEvent('stop');
+      this.stopAt = Math.round(nowAbs());
+    }
     this.state = 'stopping';
     clearInterval(this.flushTimer);
-    await this.flush();
-    const ride = this.ride;
-    ride.endedAt = Math.round(nowAbs());
-    ride.status = 'done';
-    ride.summary = computeSummary(this.liveGps, {
-      zones: ride.settings.zones,
-      durationS: (ride.endedAt - ride.startedAt) / 1000,
-    });
-    await putRide(ride);
-    this.ride = null;
-    this.base = 0;
-    this.liveGps = [];
-    this.live = null;
-    this.state = 'ready';
     this.emit('change');
-    this.dispatchEvent(new CustomEvent('ride-saved', { detail: ride.id }));
-    return ride.id;
+    try {
+      await this.flush();
+      // Do not mutate the live checkpoint before the final transaction commits.
+      const ride = {
+        ...this.ride, endedAt: this.stopAt, status: 'done',
+        summary: computeSummary(this.liveGps, {
+          zones: this.ride.settings.zones,
+          durationS: (this.stopAt - this.ride.startedAt) / 1000,
+        }),
+      };
+      await putRide(ride);
+      this.ride = null;
+      this.base = 0;
+      this.liveGps = [];
+      this.live = null;
+      this.status.storageError = null;
+      this.state = 'ready';
+      this.emit('change');
+      this.dispatchEvent(new CustomEvent('ride-saved', { detail: ride.id }));
+      return ride.id;
+    } catch (e) {
+      this.status.storageError = String(e?.message || e);
+      this.state = 'save-error';
+      this.emit('change');
+      throw e;
+    }
   }
 
   async calibrate(ms = 4000) {

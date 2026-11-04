@@ -16,11 +16,11 @@ export const ONLINE_MS = 2 * 60 * 1000;
 
 let lastSent = 0;
 let lastRiding = null;
-let sending = false;
+let sending = null;
 
 export const sharingEnabled = () => getSettings().shareLocation !== false;
 
-async function push(force = false) {
+function push(force = false) {
   const me = getMe();
   const fix = recorder.lastFix;
   if (!me || !sharingEnabled() || !fix || sending) return;
@@ -28,30 +28,39 @@ async function push(force = false) {
   const now = Date.now();
   if (!force && riding === lastRiding && now - lastSent < (riding ? SEND_RIDING_MS : SEND_IDLE_MS)) return;
   if (fix.accuracy > MAX_ACCURACY) return;
-  sending = true;
-  try {
-    const sb = await getClient();
-    const { error } = await sb.from('locations').upsert({
-      user_id: me.id,
-      lat: fix.lat, lon: fix.lon,
-      speed: fix.speed, heading: null, accuracy: fix.accuracy,
-      riding,
-    });
-    if (error) throw error;
-    lastSent = now;
-    lastRiding = riding;
-  } catch (e) {
-    console.warn('location', e);
-  } finally {
-    sending = false;
+  sending = send().finally(() => { sending = null; });
+  return sending;
+
+  async function send() {
+    try {
+      const sb = await getClient();
+      // Disabling sharing or switching accounts may have happened while loading.
+      if (!sharingEnabled() || getMe()?.id !== me.id) return;
+      const { error } = await sb.from('locations').upsert({
+        user_id: me.id,
+        lat: fix.lat, lon: fix.lon,
+        speed: fix.speed, heading: null, accuracy: fix.accuracy,
+        riding,
+      });
+      if (error) throw error;
+      lastSent = now;
+      lastRiding = riding;
+    } catch (e) {
+      console.warn('location', e);
+    }
   }
 }
 
 export function startLocationSharing() {
   recorder.addEventListener('gps', () => push());
   recorder.addEventListener('change', () => push(true));
-  const kick = () => { if (getMe() && sharingEnabled()) recorder.startGps(); };
+  const kick = () => {
+    if (!getMe()) return;
+    if (sharingEnabled()) recorder.startGps();
+    else removeLocation().catch((e) => console.warn('location removal', e));
+  };
   onMeChange(kick);
+  window.addEventListener('online', kick);
   kick();
 }
 
@@ -62,10 +71,19 @@ export async function setSharing(on) {
     push(true);
     return;
   }
+  await removeLocation();
+}
+
+async function removeLocation() {
   const me = getMe();
   if (!me) return;
+  // No new send can start while sharing is disabled. Finish an existing send
+  // before deleting so a late upsert cannot restore the location.
+  await sending;
   const sb = await getClient();
-  await sb.from('locations').delete().eq('user_id', me.id);
+  if (sharingEnabled() || getMe()?.id !== me.id) return;
+  const { error } = await sb.from('locations').delete().eq('user_id', me.id);
+  if (error) throw error;
   lastRiding = null;
 }
 

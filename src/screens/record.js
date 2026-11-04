@@ -221,17 +221,20 @@ export function mountRecord(root, { navigate }) {
         try { await ready; await recorder.start(); } catch (e) { toast(e.message); start.disabled = false; }
       });
       box.append(start);
-    } else if (state === 'recording') {
-      const stop = h(`<button class="btn danger xl hold">${icon('square')}<span class="stack">Стоп<small>удерживайте</small></span></button>`);
+    } else if (state === 'recording' || state === 'save-error') {
+      const retry = state === 'save-error';
+      const stop = h(`<button class="btn danger xl hold">${icon(retry ? 'download' : 'square')}<span class="stack">${retry ? 'Повторить сохранение' : 'Стоп'}<small>удерживайте</small></span></button>`);
       longPress(stop, STOP_HOLD_MS, async () => {
-        const id = await recorder.stop();
-        if (id) {
-          // Lean is computed here, so the ride screen opens complete.
-          try { const saved = await getRide(id); if (saved) await ensureLean(saved); } catch (e) { console.warn('lean', e); }
-          try { sessionStorage.setItem('celebrate', id); } catch { /* private mode */ }
-          navigate(`#/ride/${id}`);
-        }
+        try {
+          const id = await recorder.stop();
+          if (id) {
+            try { const saved = await getRide(id); if (saved) await ensureLean(saved); } catch (e) { console.warn('lean', e); }
+            try { sessionStorage.setItem('celebrate', id); } catch { /* private mode */ }
+            navigate(`#/ride/${id}`);
+          }
+        } catch { toast('Не удалось сохранить. Не закрывайте приложение и повторите сохранение.', 6000); }
       });
+      if (retry) { box.append(stop); return; }
       const big = h(`<button class="btn">${icon('maximize-2')}Крупный экран</button>`);
       big.addEventListener('click', () => showOverlay('black'));
       const lock = h(`<button class="btn">${icon('lock')}Блокировка</button>`);

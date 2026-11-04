@@ -69,7 +69,7 @@ function registerServiceWorker() {
     const bar = document.getElementById('update');
     bar.hidden = false;
     bar.onclick = () => {
-      if (recorder.state === 'recording') return;
+      if (recorder.ride) return;
       location.reload();
     };
   });
