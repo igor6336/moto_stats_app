@@ -9,7 +9,7 @@ import { fmtBytes } from '../format.js';
 import { APP_VERSION } from '../version.js';
 import { h, toast, exportButton } from '../ui.js';
 import { icon } from '../icons.js';
-import { pushStatus } from '../push.js';
+import { pushStatus, checkPush, onPushChange } from '../push.js';
 
 export function mountSettings(root, { navigate }) {
   const s = getSettings();
@@ -67,10 +67,23 @@ export function mountSettings(root, { navigate }) {
       <div class="kv">
         <div><span>Версия</span><b>${APP_VERSION}</b></div>
         <div><span>Запуск с экрана «Домой»</span><b>${isStandalone() ? 'да' : 'нет'}</b></div>
-        <div><span>Уведомления о версиях</span><b>${pushStatus()}</b></div>
+        <div><span>Уведомления о версиях</span><b data-push-status>${pushStatus()}</b></div>
       </div>
+      <div class="actions"><button class="btn" data-push-check>Проверить подключение уведомлений</button></div>
+      <p class="hint">Если уведомления не видны, проверьте разрешение для MotoHrust и режим «Фокусирование» в настройках телефона.</p>
     </section>`);
   root.appendChild(el);
+  const refreshPush = () => { el.querySelector('[data-push-status]').textContent = pushStatus(); };
+  const offPush = onPushChange(refreshPush);
+  el.querySelector('[data-push-check]').addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
+    btn.disabled = true;
+    try {
+      const saved = await checkPush();
+      refreshPush();
+      toast(saved ? 'Подписка на уведомления сохранена' : pushStatus(), 5000);
+    } finally { btn.disabled = false; }
+  });
   el.querySelectorAll('[data-theme-pick] button').forEach((b) => b.addEventListener('click', async () => {
     el.querySelectorAll('[data-theme-pick] button').forEach((x) => x.classList.toggle('on', x === b));
     setThemePreference(b.dataset.v);
@@ -171,5 +184,5 @@ export function mountSettings(root, { navigate }) {
   }
   showStorage();
 
-  return () => {};
+  return offPush;
 }
